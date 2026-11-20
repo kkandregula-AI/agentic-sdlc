@@ -98,13 +98,23 @@ details ul{margin:8px 0 0;padding-left:18px}details li{margin-bottom:5px}
 .chk input{margin-top:4px;accent-color:var(--gold);width:16px;height:16px}
 /* nav */
 nav{position:fixed;left:0;right:0;bottom:0;z-index:30;background:rgba(14,14,16,.96);backdrop-filter:blur(10px);border-top:1px solid var(--line);display:flex;padding:6px 6px calc(6px + env(safe-area-inset-bottom))}
-nav button{flex:1;background:none;border:0;color:var(--mute);font:500 10.5px var(--sans);padding:6px 2px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;border-radius:8px}
+nav button{flex:1;background:none;border:0;color:var(--mute);font:500 10px var(--sans);padding:6px 1px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;border-radius:8px}
 nav button span{font-size:18px;line-height:1}
 nav button.on{color:var(--gold)}
 footer{text-align:center;color:var(--mute);font:10.5px var(--mono);letter-spacing:.04em;padding:20px 0 6px}
 dialog{background:var(--s1);color:var(--text);border:1px solid var(--gold);border-radius:14px;max-width:420px;width:92%;padding:18px}
 dialog::backdrop{background:rgba(0,0,0,.7)}
 .note{font-size:12px;color:var(--mute);margin-top:8px}
+.gantt{margin-top:6px}.grow{display:flex;align-items:center;gap:6px;margin-bottom:5px}.glbl{width:30px;font:500 11px var(--mono);color:var(--mute)}
+.gtrack{position:relative;flex:1;height:16px;background:var(--s2);border-radius:4px;overflow:hidden}.gseg{position:absolute;top:0;bottom:0}
+.gseg.wait{background:repeating-linear-gradient(45deg,#7a3a3a,#7a3a3a 3px,#2b1517 3px,#2b1517 6px)}.gseg.review{background:#f2efe6}
+.gaxis{display:flex;justify-content:space-between;margin-left:36px;font:10px var(--mono);color:var(--mute)}
+.leg{display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;color:var(--mute);margin-top:8px}.leg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+.sprint{display:flex;justify-content:space-between;border-bottom:1px solid var(--line);padding:7px 0;font-size:13.5px}.sprint:last-child{border:0}
+ol.how{margin:8px 0;padding-left:20px}ol.how li{margin-bottom:7px;font-size:14px}
+.bl{display:grid;grid-template-columns:34px 1fr;gap:4px 8px;font-size:13px;padding:7px 0;border-bottom:1px solid var(--line)}.bl:last-child{border:0}.bl code{font:500 11px var(--mono);color:var(--gold)}.bl small{color:var(--mute);display:block}
+.asg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.gatebox pre.out{max-height:260px;overflow:auto}.gatebox #gateIn{max-height:130px}.gatebox label{color:var(--gold)}#simArtifacts details{padding:8px 12px;margin-bottom:8px}
 @media(max-width:520px){.kv{grid-template-columns:1fr}.kv b{padding-top:6px}.grid2{grid-template-columns:1fr}}
 </style>
 </head>
@@ -129,11 +139,20 @@ dialog::backdrop{background:rgba(0,0,0,.7)}
 
 <!-- SIMULATOR -->
 <section class="view" id="v-sim">
-  <h2>Pipeline simulator</h2>
-  <p class="lead">Run one feature through all six agents. Pick how much autonomy to grant and approve the gates yourself. <span class="tag sim">SIMULATED</span></p>
+  <h2>Agent console: single task</h2>
+  <p class="lead">Run one task through the six agents. At each human gate you see exactly what the agent <b>received</b> and what it <b>produced</b>, then approve it or deny it with feedback. Learn in Simulated mode, or run real Claude agents in Live mode. For a whole backlog, use the <b>Project</b> tab.</p>
   <div class="card">
-    <label>Work item</label>
-    <select id="simFeature"></select>
+    <label style="margin-top:0">Mode</label>
+    <div class="seg" id="simMode">
+      <button data-m="sim" class="on">Simulated<br><small>no key needed</small></button>
+      <button data-m="live">Live agents<br><small>uses your API key</small></button>
+    </div>
+    <div id="simItemBox"><label>Work item</label><select id="simFeature"></select></div>
+    <div id="liveBox" style="display:none">
+      <label>Your task</label>
+      <textarea id="liveTask" placeholder="e.g. Add a password-reset flow to our customer portal. Users get an email link that expires in 30 minutes."></textarea>
+      <p class="note">One Claude call per stage, plus one per denial. Live agents have no access to your repository or tools: they draft specs, designs, code proposals and reviews from your description, for you to review. Nothing is executed or deployed. Needs a key under ⚙ Key.</p>
+    </div>
     <label>Autonomy level</label>
     <div class="seg" id="simAuto">
       <button data-a="assist">Assist<br><small>6 gates</small></button>
@@ -141,22 +160,85 @@ dialog::backdrop{background:rgba(0,0,0,.7)}
       <button data-a="autonomous">Autonomous<br><small>1 gate</small></button>
     </div>
     <p class="note" id="autoNote"></p>
-    <div class="row" style="margin-top:12px"><button class="pri" id="simRun">▶ Run pipeline</button><button class="sec" id="simReset">Reset</button></div>
+    <div class="row" style="margin-top:12px"><button class="pri" id="simRun">▶ Run pipeline</button><button class="sec" id="simReset">Reset</button><span class="tag sim" id="simTag">SIMULATED</span></div>
   </div>
   <div class="chips" id="simChips"></div>
   <div class="log" id="simLog"><div class="m">Press Run to start.</div></div>
   <div class="gatebox" id="gateBox">
-    <b style="color:var(--red)">⛔ Human gate</b>
-    <div id="gateText" style="margin:6px 0 10px;font-size:13.5px"></div>
-    <div class="row"><button class="pri" id="gOk">Approve</button><button class="sec" id="gNo">Request changes</button></div>
+    <b style="color:var(--red)">⛔ Human gate · <span id="gateStage"></span></b>
+    <div id="gateNote" style="margin:6px 0 4px;font-size:13.5px"></div>
+    <label>Input the agent received</label><pre class="out" id="gateIn"></pre>
+    <label>Output the agent produced</label><pre class="out" id="gateOut"></pre>
+    <label>Your feedback (required to deny)</label>
+    <textarea id="gateFb" style="min-height:60px" placeholder="What should the agent fix or reconsider?"></textarea>
+    <div class="row" style="margin-top:10px"><button class="pri" id="gOk">Approve</button><button class="sec" id="gNo">Deny &amp; send back</button><button class="sec" id="gStop">Stop pipeline</button></div>
+    <p class="note" id="gateHint"></p>
   </div>
   <div class="stats">
-    <div class="stat"><b id="stElapsed">0h</b><span>elapsed (incl. review wait)</span></div>
-    <div class="stat"><b id="stAgent">0m</b><span>agent work time</span></div>
-    <div class="stat"><b id="stGates">0</b><span>human gates passed</span></div>
+    <div class="stat"><b id="st1">0h</b><span id="stL1">elapsed (incl. review wait)</span></div>
+    <div class="stat"><b id="st2">0m</b><span id="stL2">agent work time</span></div>
+    <div class="stat"><b id="st3">0</b><span>human gates passed</span></div>
   </div>
   <div class="card" id="simSummary" style="display:none;margin-top:12px"></div>
-  <p class="note">Assumptions: agent minutes per stage are illustrative; each gate adds 90 min review wait and 20 min of active human time. Compare with roughly 60 hours of hands-on effort for the same item done manually. Not a benchmark.</p>
+  <div class="card" id="simArtifacts" style="display:none"></div>
+  <p class="note" id="simNote"></p>
+</section>
+
+<!-- PROJECT -->
+<section class="view" id="v-proj">
+  <h2>Full-project simulator</h2>
+  <p class="lead">Scale from one task to a whole project: a backlog flows through the six agents in parallel, sharing a limited pool of human reviewers. Find your real bottleneck before you commit. <span class="tag sim">SIMULATED</span></p>
+  <div class="card">
+    <b style="color:var(--champ)">How a project manager uses this</b>
+    <ol class="how">
+      <li><b>Load or generate a backlog.</b> Pick a sample project, or describe yours and let Claude draft the backlog (needs your API key under ⚙ Key).</li>
+      <li><b>Tune the operating model.</b> Change autonomy, parallel items, reviewers and rework. Watch the timeline to see what really slows delivery.</li>
+      <li><b>Generate agent briefs.</b> In the Brief tab, pick a backlog item to prefill a brief for any stage.</li>
+      <li><b>Take the plan to your tools.</b> Copy the project plan and run the agents in your own tooling (for example Claude Code with your CI). The gates you chose become your review rules.</li>
+    </ol>
+    <div class="row"><span class="tag" id="pjKey"></span></div>
+    <p class="note">This app plans and simulates. It does not run agents on your code or connect to your repository.</p>
+  </div>
+  <div class="card">
+    <div class="dim" id="pjName"></div>
+    <label>Sample project</label><select id="pjPreset"></select>
+    <details style="margin:12px 0 0;padding:10px 12px"><summary>Or generate a backlog from your own description</summary>
+      <textarea id="pjDesc" style="margin-top:10px" placeholder="e.g. A web platform where freelancers send invoices, clients pay online, and accountants export monthly reports"></textarea>
+      <div class="row" style="margin-top:10px"><button class="pri" id="pjGen">Generate with Claude</button><span class="tag" id="pjMode"></span></div>
+      <p class="note" id="pjGenNote">Needs your Anthropic key (⚙ Key). Without a key, use the sample projects.</p>
+    </details>
+  </div>
+  <div class="card">
+    <label style="margin-top:0">Autonomy level</label>
+    <div class="seg" id="pjAuto">
+      <button data-a="assist">Assist<br><small>all stages gated</small></button>
+      <button data-a="supervised">Supervised<br><small>4 gates / item</small></button>
+      <button data-a="autonomous">Autonomous<br><small>release only</small></button>
+    </div>
+    <label>Parallel work items (WIP limit): <span id="pjWipV"></span></label><input type="range" id="pjWip" min="1" max="6">
+    <label>Human reviewers available: <span id="pjRevV"></span></label><input type="range" id="pjRev" min="1" max="5">
+    <label>Rework rate at gates: <span id="pjRewV"></span>%</label><input type="range" id="pjRew" min="0" max="40">
+    <label>Engineers on the manual comparison team: <span id="pjEngV"></span></label><input type="range" id="pjEng" min="2" max="12">
+    <details style="margin:12px 0 0;padding:10px 12px"><summary>Assumptions (editable)</summary>
+      <div class="asg">
+        <div><label>Agent time multiplier</label><input type="number" id="pjAgentX" step="0.1" min="0.3" max="4"></div>
+        <div><label>Reviewer pickup delay (h)</label><input type="number" id="pjLat" step="0.5" min="0" max="24"></div>
+        <div><label>Review effort, size-3 item (min)</label><input type="number" id="pjRevMin" step="5" min="5" max="240"></div>
+        <div><label>Integration buffer (%)</label><input type="number" id="pjBuf" step="5" min="0" max="100"></div>
+      </div>
+      <p class="note">Reviewer pickup delay is the most sensitive assumption here: set it to your real review turnaround. Times are working time (8h days). Small items skip Design; first-sprint greenfield items skip Refactor. Manual baseline assumes perfect parallelism and 5 productive hours per engineer per day, which flatters the manual side.</p>
+    </details>
+  </div>
+  <div class="card" id="pjResult"></div>
+  <div class="card">
+    <b style="color:var(--champ)">Project timeline</b>
+    <div class="gantt" id="pjGantt"></div>
+    <div class="gaxis" id="pjAxis"></div>
+    <div class="leg"><span><i style="background:#d8b45f"></i>Agent work (stage colour)</span><span><i style="background:repeating-linear-gradient(45deg,#7a3a3a,#7a3a3a 2px,#2b1517 2px,#2b1517 4px)"></i>Waiting for reviewer</span><span><i style="background:#f2efe6"></i>Human review</span></div>
+  </div>
+  <div class="card"><b style="color:var(--champ)">Sprint roll-up</b><div id="pjSprints" style="margin-top:6px"></div></div>
+  <details><summary>Backlog (<span id="pjCount"></span> items)</summary><div id="pjBacklog" style="margin-top:8px"></div></details>
+  <div class="row"><button class="pri" id="pjCopy">Copy project plan</button></div>
 </section>
 
 <!-- BRIEF -->
@@ -165,6 +247,7 @@ dialog::backdrop{background:rgba(0,0,0,.7)}
   <p class="lead">Agents fail on vague instructions. Generate a structured brief with scope, tools, stop conditions and a human checkpoint, then paste it into your agent tool.</p>
   <div class="card">
     <label>Stage / agent</label><select id="brStage"></select>
+    <label>Prefill from project backlog (optional)</label><select id="brItem"></select>
     <label>Task in plain words</label>
     <textarea id="brTask" placeholder="e.g. Add rate limiting to the public orders API without breaking existing clients"></textarea>
     <label>Extra constraints (optional)</label>
@@ -247,7 +330,8 @@ dialog::backdrop{background:rgba(0,0,0,.7)}
 
 <nav id="nav">
   <button data-v="stages" class="on"><span>◈</span>Stages</button>
-  <button data-v="sim"><span>▶</span>Simulate</button>
+  <button data-v="sim"><span>▶</span>Task</button>
+  <button data-v="proj"><span>▦</span>Project</button>
   <button data-v="brief"><span>✎</span>Brief</button>
   <button data-v="roi"><span>⏱</span>Impact</button>
   <button data-v="ready"><span>✓</span>Ready</button>
@@ -256,7 +340,7 @@ dialog::backdrop{background:rgba(0,0,0,.7)}
 
 <dialog id="keyDlg">
   <h2 style="font-size:16px">Anthropic API key (optional)</h2>
-  <p class="note" style="margin-top:0">Enables REAL mode in the Brief builder. Stored only in this browser's localStorage and sent only to api.anthropic.com. Without it, the app works in SIMULATED mode.</p>
+  <p class="note" style="margin-top:0">Enables REAL mode: Claude drafts your project backlog (Project tab) and tailors agent briefs (Brief tab). Stored only in this browser's localStorage and sent only to api.anthropic.com. Without it, the app works in SIMULATED mode.</p>
   <input type="password" id="keyInp" placeholder="sk-ant-..." autocomplete="off">
   <div class="row" style="margin-top:12px">
     <button class="pri" id="keySave">Save</button><button class="sec" id="keyClear">Clear</button><button class="sec" id="keyClose">Close</button>
@@ -391,81 +475,174 @@ $('#nav').addEventListener('click', e => {
   el.addEventListener('click', e => { const c = e.target.closest('.stage'); if(c) c.classList.toggle('open'); });
 })();
 
-/* ---------- SIMULATOR ---------- */
-let autoLvl = 'supervised', runId = 0, gateResolve = null, sim = {};
+/* ---------- TASK CONSOLE ---------- */
+let simMode = 'sim', autoLvl = 'supervised', runId = 0, gateResolve = null, sim = {}, artifacts = [];
+const MAX_REV = 3, FENCE = '`'.repeat(3);
 $('#simFeature').innerHTML = Object.entries(FEATURES).map(([k,f]) => `<option value="${k}">${f.name}</option>`).join('');
 function fmtH(min){ return (min/60).toFixed(1) + 'h'; }
-function renderChips(states){
-  $('#simChips').innerHTML = STAGES.map((s,i) => `<div class="chip ${states[i]||''}">${s.name}</div>`).join('');
-}
+function fmtK(n){ return n >= 1000 ? (n/1000).toFixed(1) + 'k' : String(n); }
+function renderChips(states){ $('#simChips').innerHTML = STAGES.map((s,i) => `<div class="chip ${states[i]||''}">${s.name}</div>`).join(''); }
 function addLog(t, cls){
   const d = document.createElement('div'); d.className = cls || ''; d.textContent = t;
   const l = $('#simLog'); l.appendChild(d); l.scrollTop = l.scrollHeight;
 }
 function updStats(){
-  $('#stElapsed').textContent = fmtH(sim.elapsed); $('#stAgent').textContent = sim.agent + 'm'; $('#stGates').textContent = sim.gates;
+  const live = simMode === 'live';
+  $('#stL1').textContent = live ? 'tokens used' : 'elapsed (incl. review wait)';
+  $('#stL2').textContent = live ? 'agent calls' : 'agent work time';
+  $('#st1').textContent = live ? fmtK(sim.tokens || 0) : fmtH(sim.elapsed || 0);
+  $('#st2').textContent = live ? (sim.calls || 0) : (sim.agent || 0) + 'm';
+  $('#st3').textContent = sim.gates || 0;
 }
 function setAuto(a){
   autoLvl = a;
   $$('#simAuto button').forEach(b => b.classList.toggle('on', b.dataset.a === a));
   $('#autoNote').textContent = AUTO[a].note;
 }
+function setSimMode(m){
+  simMode = m;
+  $$('#simMode button').forEach(b => b.classList.toggle('on', b.dataset.m === m));
+  $('#simItemBox').style.display = m === 'sim' ? 'block' : 'none';
+  $('#liveBox').style.display = m === 'live' ? 'block' : 'none';
+  const t = $('#simTag'); t.textContent = m === 'live' ? 'REAL · CLAUDE API' : 'SIMULATED'; t.className = 'tag ' + (m === 'live' ? 'real' : 'sim');
+  $('#simNote').textContent = m === 'sim'
+    ? 'Simulated: agent outputs are templates built from the work item. The INPUT you see is exactly what a live agent would receive. Each gate adds 90 min review wait and 20 min of active human time; manual baseline is about 60h. Not a benchmark.'
+    : 'Live: every output comes from Claude. Treat each one as a draft for review. Token counts are shown so you can estimate cost.';
+  resetSim();
+}
+$('#simMode').addEventListener('click', e => { const b = e.target.closest('button'); if(b) setSimMode(b.dataset.m); });
 $('#simAuto').addEventListener('click', e => { const b = e.target.closest('button'); if(b){ setAuto(b.dataset.a); resetSim(); } });
 $('#simFeature').addEventListener('change', resetSim);
 function resetSim(){
   runId++; if(gateResolve){ gateResolve(null); gateResolve = null; }
-  sim = {elapsed:0, agent:0, gates:0, rework:0};
+  sim = {elapsed:0, agent:0, gates:0, denials:0, tokens:0, calls:0, humanActive:0, task:''}; artifacts = [];
   $('#simLog').innerHTML = '<div class="m">Press Run to start.</div>';
-  $('#gateBox').classList.remove('on'); $('#simSummary').style.display = 'none';
+  $('#gateBox').classList.remove('on'); $('#simSummary').style.display = 'none'; $('#simArtifacts').style.display = 'none';
   $('#simRun').disabled = false; renderChips([]); updStats();
 }
-function askGate(i){
+function stageSystem(s){
+  return `You are the ${s.agent} in an agentic software-delivery pipeline (${s.name} stage). Your job: ${s.does.join('; ')}. Guardrail: ${s.guard} Produce: ${s.output}. You have no repository, network or tool access: work only from the task and upstream artifacts, state your assumptions explicitly, and never claim to have run or tested anything. If you hit this stop condition, begin your reply with "ESCALATE:" and explain: ${s.stop}. Keep the reply under 350 words, in plain text or markdown, with code only in short fenced snippets.`;
+}
+function buildInput(s, task, upstream, fb, prevOut){
+  return `TASK
+${task}
+
+CONTEXT TO USE
+- ${s.context}
+- No repository access: state assumptions explicitly.
+
+APPROVED UPSTREAM ARTIFACTS
+${upstream.length ? upstream.map(u => `## ${u.name}\n${u.text.slice(0, 1800)}`).join('\n\n') : '(none: you are the first stage)'}
+${fb ? `\nREVIEWER FEEDBACK TO ADDRESS\n${fb}\n\nYOUR PREVIOUS OUTPUT\n${prevOut.slice(0, 2500)}\n` : ''}`;
+}
+function simOutput(s, f, rev, fb){
+  return `[${s.agent}] ${s.output}\n\n` + f.logs[s.id].map(l => '• ' + l).join('\n')
+    + (rev ? `\n\nRevision ${rev}: addressed reviewer feedback: "${fb}"` : '')
+    + '\n\n(Simulated output: a live agent would write the full artifact here.)';
+}
+async function callAgent(s, userMsg){
+  const res = await fetch('https://api.anthropic.com/v1/messages', {method:'POST',
+    headers:{'content-type':'application/json','x-api-key':store.get('key', ''),'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({model:'claude-sonnet-5-5', max_tokens:1100, system:stageSystem(s), messages:[{role:'user', content:userMsg}]})});
+  const data = await res.json();
+  if(!res.ok) throw new Error((data.error && data.error.message) || ('HTTP ' + res.status));
+  const text = (data.content || []).map(c => c.text || '').join('').trim();
+  if(!text) throw new Error('Empty reply from the API');
+  return {text, usage:data.usage || {}};
+}
+function askGate(i, input, out, canDeny, escalate){
   return new Promise(res => {
     gateResolve = res;
-    $('#gateText').textContent = STAGES[i].gate;
-    $('#gateBox').classList.add('on');
+    $('#gateStage').textContent = STAGES[i].agent;
+    $('#gateNote').textContent = escalate ? '⚠ The agent flagged a stop condition (ESCALATE). Review carefully. ' + STAGES[i].gate : STAGES[i].gate;
+    $('#gateIn').textContent = input; $('#gateOut').textContent = out; $('#gateFb').value = '';
+    $('#gNo').style.display = canDeny ? '' : 'none';
+    $('#gateHint').textContent = canDeny ? 'Denying sends your feedback back to the agent for a revision.' : 'Maximum revisions reached. Approve this output or stop the pipeline.';
+    $('#gateBox').classList.add('on'); $('#gateBox').scrollIntoView({behavior:'smooth', block:'start'});
   });
 }
-$('#gOk').onclick = () => { if(gateResolve){ const r = gateResolve; gateResolve = null; $('#gateBox').classList.remove('on'); r('ok'); } };
-$('#gNo').onclick = () => { if(gateResolve){ const r = gateResolve; gateResolve = null; $('#gateBox').classList.remove('on'); r('changes'); } };
+function answerGate(v){ if(gateResolve){ const r = gateResolve; gateResolve = null; $('#gateBox').classList.remove('on'); r(v); } }
+$('#gOk').onclick = () => answerGate({action:'ok'});
+$('#gStop').onclick = () => answerGate({action:'stop'});
+$('#gNo').onclick = () => {
+  const fb = $('#gateFb').value.trim();
+  if(!fb){ $('#gateFb').focus(); $('#gateHint').textContent = 'Please say what to fix, so the agent can revise.'; return; }
+  answerGate({action:'deny', feedback:fb});
+};
 $('#simReset').onclick = resetSim;
+function artifactsMd(){
+  return `# Agentic SDLC run\n\nTask: ${sim.task}\nMode: ${simMode === 'live' ? 'Live (Claude API)' : 'Simulated'} · Autonomy: ${autoLvl}\n\n` + artifacts.map(a =>
+    `## ${a.stage.agent}\n\n### Input\n${FENCE}\n${a.input}\n${FENCE}\n\n### Output (${a.gated ? 'human-approved' : 'auto-passed'}${a.rev ? ', revision ' + a.rev : ''})\n\n${a.output}\n`).join('\n')
+    + '\nGenerated with Agentic SDLC Lab · Designed & Architected by Krishnamurthy Kandregula · Made by Claude\n';
+}
+function renderArtifacts(){
+  const box = $('#simArtifacts'); if(!artifacts.length){ box.style.display = 'none'; return; }
+  box.style.display = 'block';
+  box.innerHTML = `<b style="color:var(--champ)">Agent inputs &amp; outputs</b><div class="row" style="margin:8px 0"><button class="sec" id="artCopy">Copy all</button><button class="sec" id="artDl">Download .md</button></div>`
+    + artifacts.map(a => `<details><summary>${esc(a.stage.agent)} ${a.rev ? `<span class="tag">rev ${a.rev}</span>` : ''} ${a.gated ? '<span class="tag real">approved</span>' : '<span class="tag">auto-passed</span>'}</summary><label>Input</label><pre class="out" style="max-height:200px;overflow:auto">${esc(a.input)}</pre><label>Output</label><pre class="out" style="max-height:260px;overflow:auto">${esc(a.output)}</pre></details>`).join('');
+}
+$('#simArtifacts').addEventListener('click', async e => {
+  if(e.target.id === 'artCopy'){ try{ await navigator.clipboard.writeText(artifactsMd()); e.target.textContent = 'Copied ✓'; }catch(x){ e.target.textContent = 'Copy blocked'; } setTimeout(() => e.target.textContent = 'Copy all', 1500); }
+  if(e.target.id === 'artDl'){ const u = URL.createObjectURL(new Blob([artifactsMd()], {type:'text/markdown'})); const a = document.createElement('a'); a.href = u; a.download = 'agentic-sdlc-run.md'; a.click(); setTimeout(() => URL.revokeObjectURL(u), 1000); }
+});
+function finishRun(stopped){
+  const live = simMode === 'live', sum = $('#simSummary');
+  renderArtifacts(); sum.style.display = 'block';
+  const head = stopped ? 'Stopped by reviewer' : 'Pipeline complete';
+  sum.innerHTML = `<b style="color:var(--champ)">${head}</b><p style="margin:6px 0 0">` + (live
+    ? `${sim.calls} agent call${sim.calls === 1 ? '' : 's'} using ${fmtK(sim.tokens)} tokens, ${sim.gates} human gate${sim.gates === 1 ? '' : 's'} passed, ${sim.denials} denial${sim.denials === 1 ? '' : 's'}. Every artifact is a draft for human review: nothing was executed, tested or deployed.`
+    : `End to end in <b>${fmtH(sim.elapsed)}</b> of clock time with <b>${fmtH(sim.humanActive)}</b> of active human review across ${sim.gates} gate${sim.gates === 1 ? '' : 's'}${sim.denials ? ` (${sim.denials} denial${sim.denials > 1 ? 's' : ''})` : ''}. Manual baseline: about ${BASELINE_H}h of hands-on effort. ${autoLvl === 'assist' ? 'Try Supervised to see how fewer gates cut waiting.' : autoLvl === 'autonomous' ? 'Fastest, but only safe when tests and policy-as-code are strong.' : 'A balanced default: humans decide, agents do the work.'}`) + '</p>';
+  $('#simRun').disabled = false;
+}
 $('#simRun').onclick = async () => {
-  resetSim(); const my = runId; const f = FEATURES[$('#simFeature').value];
-  $('#simRun').disabled = true; $('#simLog').innerHTML = '';
-  addLog('▶ Work item: ' + f.name, 'a'); addLog('Autonomy: ' + autoLvl, 'm');
-  const states = [];
+  resetSim(); const my = runId, live = simMode === 'live';
+  let task, f = null;
+  if(live){
+    task = $('#liveTask').value.trim();
+    if(!task){ $('#liveTask').focus(); return; }
+    if(!store.get('key', '')){ $('#simLog').innerHTML = '<div class="h">Live mode needs your Anthropic key. Add it under ⚙ Key, then run again.</div>'; $('#setBtn').click(); return; }
+  } else { f = FEATURES[$('#simFeature').value]; task = f.name; }
+  sim.task = task; $('#simRun').disabled = true; $('#simLog').innerHTML = '';
+  addLog('▶ Task: ' + task, 'a'); addLog('Mode: ' + (live ? 'LIVE (Claude API)' : 'SIMULATED') + ' · Autonomy: ' + autoLvl, 'm');
+  const states = [], upstream = [];
   for(let i = 0; i < STAGES.length; i++){
-    const s = STAGES[i];
-    states[i] = 'active'; renderChips(states);
-    addLog('— ' + s.agent, 'a');
-    for(const line of f.logs[s.id]){
-      await sleep(600); if(my !== runId) return;
-      addLog('  ' + line, line.startsWith('HIGH') ? 'h' : '');
-    }
-    sim.agent += s.mins; sim.elapsed += s.mins; updStats();
-    const needGate = AUTO[autoLvl].gates.includes(s.id) || (s.id === 'security' && f.high);
-    if(needGate){
-      states[i] = 'gate'; renderChips(states);
-      addLog('  ⛔ waiting for human gate…', 'h');
-      const r = await askGate(i); if(my !== runId || r === null) return;
-      if(r === 'changes'){
-        addLog('  ↺ Reviewer requested changes. Agent revising…', 'm');
-        await sleep(700); if(my !== runId) return;
-        sim.rework++; sim.agent += Math.round(s.mins/2); sim.elapsed += Math.round(s.mins/2) + GATE_WAIT;
+    const s = STAGES[i]; states[i] = 'active'; renderChips(states); addLog('— ' + s.agent, 'a');
+    let rev = 0, fb = '', prevOut = '', done = false;
+    while(!done){
+      const input = buildInput(s, task, upstream, fb, prevOut), shownIn = 'SYSTEM\n' + stageSystem(s) + '\n\nUSER\n' + input;
+      let out;
+      try{
+        if(live){
+          addLog(rev ? `  ↺ revision ${rev}: calling Claude…` : '  calling Claude…', 'm');
+          const r = await callAgent(s, input); out = r.text; sim.calls++; sim.tokens += (r.usage.input_tokens || 0) + (r.usage.output_tokens || 0);
+        } else {
+          if(!rev) for(const line of f.logs[s.id]){ await sleep(500); if(my !== runId) return; addLog('  ' + line, line.startsWith('HIGH') ? 'h' : ''); }
+          else { addLog(`  ↺ revision ${rev}: agent revising…`, 'm'); await sleep(700); }
+          out = simOutput(s, f, rev, fb); const m = rev ? Math.round(s.mins / 2) : s.mins; sim.agent += m; sim.elapsed += m;
+        }
+      }catch(err){
+        if(my !== runId) return;
+        addLog('  ✖ ' + err.message, 'h'); addLog('Pipeline stopped. Check your key and connection, then run again.', 'h');
+        states[i] = 'gate'; renderChips(states); updStats(); finishRun(true); return;
       }
-      sim.gates++; sim.elapsed += GATE_WAIT; sim.humanActive = (sim.humanActive||0) + GATE_ACTIVE;
-      addLog('  ✓ Approved', 'ok'); updStats();
+      if(my !== runId) return; updStats();
+      const escalate = live && /^\s*ESCALATE:/i.test(out);
+      const needGate = AUTO[autoLvl].gates.includes(s.id) || (!live && s.id === 'security' && f.high) || escalate;
+      if(needGate){
+        states[i] = 'gate'; renderChips(states); addLog(escalate ? '  ⚠ agent escalated: human decision required' : '  ⛔ waiting for human gate…', 'h');
+        const r = await askGate(i, shownIn, out, rev < MAX_REV, escalate); if(my !== runId || !r) return;
+        if(r.action === 'stop'){ addLog('■ Stopped by reviewer', 'h'); states[i] = 'gate'; renderChips(states); finishRun(true); return; }
+        if(r.action === 'deny'){ sim.denials++; fb = r.feedback; prevOut = out; rev++; addLog('  ✗ Denied: ' + fb, 'h'); states[i] = 'active'; renderChips(states); continue; }
+        sim.gates++; sim.humanActive += GATE_ACTIVE; if(!live) sim.elapsed += GATE_WAIT;
+        addLog('  ✓ Approved', 'ok'); updStats();
+      } else addLog('  ✓ Auto-passed (no gate at this autonomy level)', 'm');
+      artifacts.push({stage:s, input:shownIn, output:out, rev, gated:needGate}); upstream.push({name:s.name, text:out}); done = true;
     }
     states[i] = 'done'; renderChips(states);
   }
-  addLog('✔ Pipeline complete', 'ok');
-  const act = (sim.humanActive||0);
-  const sum = $('#simSummary');
-  sum.style.display = 'block';
-  sum.innerHTML = `<b style="color:var(--champ)">Result</b><p style="margin:6px 0 0">End to end in <b>${fmtH(sim.elapsed)}</b> of clock time with only <b>${fmtH(act)}</b> of active human review across ${sim.gates} gate${sim.gates===1?'':'s'}${sim.rework?` (${sim.rework} rework loop${sim.rework>1?'s':''})`:''}. Manual baseline: about ${BASELINE_H}h of hands-on effort. ${autoLvl==='assist'?'Try Supervised to see how fewer gates cut waiting.':autoLvl==='autonomous'?'Fastest, but only safe when tests and policy-as-code are strong.':'A balanced default: humans decide, agents do the work.'}</p>`;
-  $('#simRun').disabled = false;
+  addLog('✔ Pipeline complete', 'ok'); finishRun(false);
 };
-setAuto('supervised'); renderChips([]);
+setAuto('supervised'); setSimMode('sim');
 
 /* ---------- BRIEF ---------- */
 $('#brStage').innerHTML = STAGES.map(s => `<option value="${s.id}">${s.name} · ${s.agent}</option>`).join('');
@@ -601,10 +778,198 @@ function renderGuards(){
 $('#guardList').addEventListener('change', e => { gd[e.target.dataset.i] = e.target.checked; store.set('guards', gd); renderGuards(); });
 renderGuards();
 
+/* ---------- PROJECT ---------- */
+const PM_MINS = {plan:30,design:45,build:150,refactor:60,security:40,ship:40};
+const MAN_H = {plan:8,design:8,build:24,refactor:8,security:8,ship:4};
+const PRESETS = {
+ book:{name:'Online appointment booking platform', items:[
+  ['A1','User accounts & login',3,[],1,0],['A2','Booking engine (slots, calendar)',5,['A1'],1,0],['A3','Online payments & refunds',4,['A2'],2,1],
+  ['A4','Email & SMS notifications',2,['A2'],2,0],['A5','Admin dashboard',3,['A2'],2,0],['A6','Reports & analytics',3,['A3','A5'],3,0],
+  ['A7','Performance & load hardening',2,['A6'],3,0],['A8','Go-live, monitoring & runbooks',2,['A7'],3,0]]},
+ shop:{name:'E-commerce storefront', items:[
+  ['S1','Product catalog & search',4,[],1,0],['S2','Cart & checkout',5,['S1'],1,0],['S3','Payments & fraud checks',4,['S2'],2,1],
+  ['S4','Order tracking & emails',3,['S2'],2,0],['S5','Inventory sync',3,['S1'],2,0],['S6','Admin & promotions',3,['S3','S5'],3,0],
+  ['S7','Security review & load test',2,['S6'],3,1],['S8','Launch & monitoring',2,['S7'],3,0]]},
+ hr:{name:'Internal HR portal', items:[
+  ['H1','Single sign-on & roles',3,[],1,1],['H2','Employee directory',2,['H1'],1,0],['H3','Leave requests & approvals',4,['H1'],1,0],
+  ['H4','Payroll data export',3,['H3'],2,1],['H5','Onboarding checklists',3,['H2'],2,0],['H6','Reports & dashboards',3,['H4','H5'],3,0],
+  ['H7','Audit logging & access review',2,['H6'],3,1],['H8','Rollout & training docs',2,['H7'],3,0]]}
+};
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const toItems = rows => rows.map(r => ({id:r[0], title:r[1], size:r[2], deps:r[3], sprint:r[4], high:!!r[5]}));
+function sanitizeItems(arr){
+  if(!Array.isArray(arr)) return null;
+  const raw = arr.slice(0, 12), out = [], seen = new Set();
+  raw.forEach((r, i) => {
+    if(!r || typeof r !== 'object') return;
+    let id = String(r.id || ('W' + (i+1))).replace(/[^\w-]/g, '').slice(0, 6) || ('W' + (i+1));
+    if(seen.has(id)) id = 'W' + (i+1) + 'x';
+    seen.add(id);
+    out.push({id, title:String(r.title || 'Work item').slice(0, 48), size:Math.min(5, Math.max(1, Math.round(+r.size || 3))),
+      sprint:Math.min(4, Math.max(1, Math.round(+r.sprint || 1))), high:!!r.high, deps:Array.isArray(r.deps) ? r.deps.map(String) : []});
+  });
+  const idx = new Map(out.map((o, i) => [o.id, i]));
+  out.forEach((o, i) => o.deps = [...new Set(o.deps)].filter(d => idx.has(d) && idx.get(d) < i));
+  return out.length >= 3 ? out : null;
+}
+let pj = Object.assign({name:PRESETS.book.name, items:toItems(PRESETS.book.items), auto:'supervised', wip:3, rev:2, rew:20, eng:5, agentX:1, lat:1, revMin:30, buf:15}, store.get('pj', {}));
+pj.items = sanitizeItems(pj.items) || toItems(PRESETS.book.items);
+function mulberry32(a){ return function(){ a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function stageIdx(it){ return STAGES.map((s,i) => i).filter(i => !(STAGES[i].id === 'design' && it.size <= 2) && !(STAGES[i].id === 'refactor' && it.sprint === 1)); }
+function runProject(c){
+  const items = c.items.map(it => ({...it, started:false, done:false, finish:0, segs:[], stages:stageIdx(it)}));
+  const byId = Object.fromEntries(items.map(i => [i.id, i]));
+  const rnd = mulberry32(42), revFree = Array(c.reviewers).fill(0);
+  let wip = 0, seq = 0, ev = [], wipBlocked = 0, reviewMins = 0, waitMins = 0, gates = 0, reworks = 0;
+  const gateNeeded = (it, s) => AUTO[c.auto].gates.includes(s.id) || (s.id === 'security' && it.high);
+  const dur = (it, s) => Math.max(5, Math.round(PM_MINS[s.id] * c.agentX * it.size / 3));
+  const push = (t, type, it, k, retry) => ev.push({t, type, it, k, retry, seq:seq++});
+  function startStage(it, k, now, retry){
+    const s = STAGES[it.stages[k]], d = retry ? Math.round(dur(it, s) * 0.5) : dur(it, s);
+    it.segs.push({a:now, b:now + d, t:'agent', s:s.id}); push(now + d, 'agentDone', it, k, retry);
+  }
+  function tryStart(now){
+    for(const it of items){
+      if(it.started || !it.deps.every(d => byId[d].done)) continue;
+      if(wip >= c.wip){ wipBlocked++; return; }
+      it.started = true; wip++; startStage(it, 0, now, false);
+    }
+  }
+  function advance(it, k, t){
+    if(k + 1 < it.stages.length) startStage(it, k + 1, t, false);
+    else { it.done = true; it.finish = t; wip--; tryStart(t); }
+  }
+  tryStart(0);
+  while(ev.length){
+    ev.sort((a, b) => a.t - b.t || a.seq - b.seq);
+    const e = ev.shift(), it = e.it, s = STAGES[it.stages[e.k]];
+    if(e.type === 'agentDone'){
+      if(gateNeeded(it, s)){
+        let r = 0; revFree.forEach((f, i) => { if(f < revFree[r]) r = i; });
+        const start = Math.max(e.t + c.lat, revFree[r]);
+        const rv = Math.max(5, Math.round(c.revMin * it.size / 3 * (e.retry ? 0.5 : 1)));
+        revFree[r] = start + rv;
+        it.segs.push({a:e.t, b:start, t:'wait', s:s.id}); it.segs.push({a:start, b:start + rv, t:'review', s:s.id});
+        waitMins += start - e.t; reviewMins += rv; gates++;
+        push(start + rv, 'gateDone', it, e.k, e.retry);
+      } else advance(it, e.k, e.t);
+    } else {
+      if(!e.retry && rnd() < c.rework){ reworks++; startStage(it, e.k, e.t, true); }
+      else advance(it, e.k, e.t);
+    }
+  }
+  const makespan = Math.max(1, ...items.map(i => i.finish));
+  return {items, makespan, reviewMins, waitMins, gates, reworks, wipBlocked};
+}
+let pjLast = null;
+function renderProject(){
+  const c = {items:pj.items, auto:pj.auto, wip:pj.wip, reviewers:pj.rev, rework:pj.rew / 100, agentX:pj.agentX, lat:pj.lat * 60, revMin:pj.revMin};
+  const r = runProject(c), DAY = 480, buf = 1 + pj.buf / 100;
+  const agDays = r.makespan * buf / DAY;
+  let manH = 0;
+  r.items.forEach(it => { manH += it.stages.reduce((a, i) => a + MAN_H[STAGES[i].id], 0) * it.size / 3; });
+  const manDays = manH / (pj.eng * 5), humanH = r.reviewMins / 60;
+  const util = r.reviewMins / (pj.rev * r.makespan), avgWait = r.gates ? r.waitMins / r.gates / 60 : 0;
+  const pct = Math.round((1 - agDays / manDays) * 100);
+  let verdict, tip;
+  if(util > 0.7){ verdict = 'Reviewers are the bottleneck'; tip = 'Add reviewers, shrink PR size, or move low-risk stages to autonomous.'; }
+  else if(r.wipBlocked > 0){ verdict = 'The parallel-item limit is the bottleneck'; tip = 'Raise parallel work items, as long as reviewers can keep up.'; }
+  else { verdict = 'Dependencies between items set the pace'; tip = 'Split items so more work can start in parallel, or reorder the backlog.'; }
+  const msg = pct >= 0 ? `About <b style="color:var(--green)">${pct}% faster</b> than the manual plan, finishing roughly <b>${(manDays - agDays).toFixed(1)} days</b> earlier.`
+    : `About <b style="color:var(--red)">${-pct}% slower</b> than the manual plan under these settings. Review capacity or dependencies are eating the gain.`;
+  $('#pjResult').innerHTML = `<div class="grid2"><div><div class="note" style="margin:0">Manual team (${pj.eng} engineers)</div><div class="big">${manDays.toFixed(1)}d</div></div>
+    <div><div class="note" style="margin:0">With agents</div><div class="big" style="color:var(--green)">${agDays.toFixed(1)}d</div></div></div>
+    <p style="margin:8px 0 0">${msg}${pj.auto === 'autonomous' ? ' Fewer gates is faster, but it also means fewer chances to catch defects.' : ''}</p>
+    <div class="stats"><div class="stat"><b>${Math.round(util * 100)}%</b><span>reviewer load</span></div>
+    <div class="stat"><b>${avgWait.toFixed(1)}h</b><span>avg wait per gate</span></div>
+    <div class="stat"><b>${humanH.toFixed(0)}h</b><span>review effort vs ${manH.toFixed(0)}h manual</span></div></div>
+    <p style="margin:10px 0 0"><b style="color:var(--gold)">Likely bottleneck: ${verdict}.</b> <span style="color:var(--mute)">${tip}</span></p>`;
+  const mk = r.makespan;
+  $('#pjGantt').innerHTML = r.items.map(it => `<div class="grow"><span class="glbl" title="${esc(it.title)}">${esc(it.id)}</span><div class="gtrack">${it.segs.map(g => `<div class="gseg ${g.t}" title="${esc(STAGES.find(x => x.id === g.s).name)} · ${g.t}" style="left:${g.a / mk * 100}%;width:${Math.max(0.3, (g.b - g.a) / mk * 100)}%;${g.t === 'agent' ? 'background:' + STAGES.find(x => x.id === g.s).color : ''}"></div>`).join('')}</div></div>`).join('');
+  $('#pjAxis').innerHTML = [0, .25, .5, .75, 1].map(f => `<span>${f === 0 ? 'Day 0' : (mk * f * buf / DAY).toFixed(1)}</span>`).join('');
+  const sp = {}; r.items.forEach(it => { (sp[it.sprint] = sp[it.sprint] || {n:0, end:0}); sp[it.sprint].n++; sp[it.sprint].end = Math.max(sp[it.sprint].end, it.finish); });
+  $('#pjSprints').innerHTML = Object.keys(sp).sort().map(k => `<div class="sprint"><span>Sprint ${k} · ${sp[k].n} items</span><span style="font-family:var(--mono);color:var(--champ)">done by day ${(sp[k].end * buf / DAY).toFixed(1)}</span></div>`).join('');
+  $('#pjBacklog').innerHTML = r.items.map(it => `<div class="bl"><code>${esc(it.id)}</code><div>${esc(it.title)}${it.high ? ' <span class="tag" style="color:var(--red);border-color:#6b2f2f">high risk</span>' : ''}<small>Sprint ${it.sprint} · size ${it.size}/5 · depends on ${it.deps.length ? esc(it.deps.join(', ')) : 'nothing'} · ${it.stages.map(i => STAGES[i].name).join(' › ')}</small></div></div>`).join('');
+  $('#pjCount').textContent = r.items.length; $('#pjName').textContent = 'Current project: ' + pj.name;
+  $('#pjWipV').textContent = pj.wip; $('#pjRevV').textContent = pj.rev; $('#pjRewV').textContent = pj.rew; $('#pjEngV').textContent = pj.eng;
+  $$('#pjAuto button').forEach(b => b.classList.toggle('on', b.dataset.a === pj.auto));
+  const sel = $('#brItem'), cur = sel.value;
+  sel.innerHTML = '<option value="">— none —</option>' + r.items.map(it => `<option value="${esc(it.id)}">${esc(it.id)} · ${esc(it.title)}</option>`).join('');
+  sel.value = [...sel.options].some(o => o.value === cur) ? cur : '';
+  pjLast = {r, manDays, agDays, pct, util, verdict, manH};
+  const keep = {...pj}; store.set('pj', keep);
+}
+function initProjectControls(){
+  $('#pjPreset').innerHTML = Object.entries(PRESETS).map(([k, p]) => `<option value="${k}">${p.name}</option>`).join('');
+  const m = Object.entries(PRESETS).find(([k, p]) => p.name === pj.name); if(m) $('#pjPreset').value = m[0];
+  $('#pjWip').value = pj.wip; $('#pjRev').value = pj.rev; $('#pjRew').value = pj.rew; $('#pjEng').value = pj.eng;
+  $('#pjAgentX').value = pj.agentX; $('#pjLat').value = pj.lat; $('#pjRevMin').value = pj.revMin; $('#pjBuf').value = pj.buf;
+}
+function readProjectControls(){
+  pj.wip = +$('#pjWip').value; pj.rev = +$('#pjRev').value; pj.rew = +$('#pjRew').value; pj.eng = +$('#pjEng').value;
+  pj.agentX = Math.max(0.3, +$('#pjAgentX').value || 1); pj.lat = Math.max(0, +$('#pjLat').value || 0);
+  pj.revMin = Math.max(5, +$('#pjRevMin').value || 30); pj.buf = Math.max(0, +$('#pjBuf').value || 0);
+  renderProject();
+}
+$('#v-proj').addEventListener('input', e => { if(e.target.matches('input[type=range],input[type=number]')) readProjectControls(); });
+$('#pjAuto').addEventListener('click', e => { const b = e.target.closest('button'); if(b){ pj.auto = b.dataset.a; renderProject(); } });
+$('#pjPreset').addEventListener('change', e => { const p = PRESETS[e.target.value]; pj.name = p.name; pj.items = toItems(p.items); $('#pjMode').textContent = ''; $('#pjMode').className = 'tag'; renderProject(); });
+$('#brItem').addEventListener('change', e => {
+  const it = pj.items.find(x => x.id === e.target.value); if(!it) return;
+  $('#brTask').value = `${it.title} (work item ${it.id} of the project "${pj.name}", sprint ${it.sprint}, size ${it.size}/5${it.high ? ', high risk' : ''}${it.deps.length ? ', builds on ' + it.deps.join(', ') : ''})`;
+});
+$('#pjGen').onclick = async () => {
+  const d = $('#pjDesc').value.trim(), key = store.get('key', '');
+  if(!d){ $('#pjDesc').focus(); return; }
+  if(!key){ $('#pjGenNote').textContent = 'Add your Anthropic key under ⚙ Key first. Meanwhile, try a sample project above.'; $('#setBtn').click(); return; }
+  $('#pjGen').disabled = true; $('#pjGenNote').textContent = 'Asking Claude to draft a backlog…';
+  try{
+    const res = await fetch('https://api.anthropic.com/v1/messages', {method:'POST',
+      headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-sonnet-5-5', max_tokens:1500,
+        system:'You are an experienced delivery lead. Return ONLY a valid JSON array, no prose and no code fences, of 6 to 12 work items for the described software project. Each item: {"id":"W1","title":"max 6 words","size":1-5 relative complexity,"deps":["ids of EARLIER items it needs"],"sprint":1-4,"high":true only for payments, auth, personal data or safety-critical work}. List items so that dependencies always come first.',
+        messages:[{role:'user', content:d}]})});
+    const data = await res.json();
+    if(!res.ok) throw new Error((data.error && data.error.message) || ('HTTP ' + res.status));
+    let t = (data.content || []).map(c => c.text || '').join('');
+    const a = t.indexOf('['), b = t.lastIndexOf(']'); if(a < 0 || b < a) throw new Error('No JSON in reply');
+    const items = sanitizeItems(JSON.parse(t.slice(a, b + 1))); if(!items) throw new Error('Backlog was too small or invalid');
+    pj.items = items; pj.name = d.length > 44 ? d.slice(0, 44) + '…' : d;
+    $('#pjMode').textContent = 'REAL · CLAUDE API'; $('#pjMode').className = 'tag real';
+    $('#pjGenNote').textContent = 'Backlog generated. Review it under Backlog below, then tune the model.';
+    renderProject();
+  }catch(err){ $('#pjGenNote').textContent = 'Could not generate: ' + err.message; }
+  $('#pjGen').disabled = false;
+};
+$('#pjCopy').onclick = async () => {
+  if(!pjLast) return; const L = pjLast, r = L.r;
+  const txt = `AGENTIC SDLC PLAN: ${pj.name}
+Operating model: ${pj.auto} autonomy · ${pj.wip} parallel items · ${pj.rev} reviewers · ${pj.rew}% rework
+Human gates: ${AUTO[pj.auto].gates.map(g => STAGES.find(s => s.id === g).name).join(', ')} (security always gated for high-risk items)
+
+BACKLOG
+${r.items.map(it => `- ${it.id} [Sprint ${it.sprint}, size ${it.size}/5${it.high ? ', HIGH RISK' : ''}] ${it.title}\n    depends on: ${it.deps.join(', ') || 'none'}\n    agents: ${it.stages.map(i => STAGES[i].agent).join(' > ')}`).join('\n')}
+
+SIMULATED RESULT (illustrative, not a benchmark)
+Manual: ~${L.manDays.toFixed(1)} days · With agents: ~${L.agDays.toFixed(1)} days (${L.pct}% faster)
+Reviewer load: ${Math.round(L.util * 100)}% · Likely bottleneck: ${L.verdict}
+Assumptions: agent time x${pj.agentX}, reviewer pickup ${pj.lat}h, review ${pj.revMin} min per size-3 item, ${pj.buf}% integration buffer
+
+Generated with Agentic SDLC Lab · Designed & Architected by Krishnamurthy Kandregula · Made by Claude`;
+  try{ await navigator.clipboard.writeText(txt); $('#pjCopy').textContent = 'Copied ✓'; }catch(e){ $('#pjCopy').textContent = 'Copy blocked'; }
+  setTimeout(() => $('#pjCopy').textContent = 'Copy project plan', 1500);
+};
+function refreshKeyUi(){
+  const has = !!store.get('key', '');
+  $('#setBtn').textContent = has ? '⚙ Key ✓' : '⚙ Key';
+  const t = $('#pjKey'); t.textContent = has ? 'API key set · REAL mode available' : 'No API key · SIMULATED mode'; t.className = 'tag ' + (has ? 'real' : 'sim');
+}
+initProjectControls(); renderProject(); refreshKeyUi();
+
 /* ---------- SETTINGS / INSTALL / SW ---------- */
 $('#setBtn').onclick = () => { $('#keyInp').value = store.get('key', ''); $('#keyDlg').showModal(); };
-$('#keySave').onclick = () => { store.set('key', $('#keyInp').value.trim()); $('#keyDlg').close(); };
-$('#keyClear').onclick = () => { store.set('key', ''); $('#keyInp').value = ''; };
+$('#keySave').onclick = () => { store.set('key', $('#keyInp').value.trim()); $('#keyDlg').close(); refreshKeyUi(); };
+$('#keyClear').onclick = () => { store.set('key', ''); $('#keyInp').value = ''; refreshKeyUi(); };
 $('#keyClose').onclick = () => $('#keyDlg').close();
 let dp = null;
 addEventListener('beforeinstallprompt', e => { e.preventDefault(); dp = e; $('#installBtn').hidden = false; });
