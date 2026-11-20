@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Agentic SDLC Lab</title>
+<meta name="theme-color" content="#0a0a0b">
+<meta name="description" content="Modernize the SDLC with autonomous agents across planning, design, refactoring and security validation.">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="SDLC Lab">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=DM+Sans:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0a0b;--s1:#121215;--s2:#18181c;--line:#2a2a30;
+  --gold:#d8b45f;--champ:#e8d5a3;--text:#ece8df;--mute:#8e8b84;
+  --green:#6fcf97;--red:#eb6b6b;--blue:#7aa7ff;--purple:#be8cff;
+  --serif:'Cinzel',Georgia,serif;--sans:'DM Sans',system-ui,-apple-system,Segoe UI,sans-serif;--mono:'DM Mono',ui-monospace,Menlo,monospace;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:15px;line-height:1.5}
+body{padding-bottom:calc(76px + env(safe-area-inset-bottom))}
+header{position:sticky;top:0;z-index:20;background:rgba(10,10,11,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);padding:calc(10px + env(safe-area-inset-top)) 16px 10px;display:flex;align-items:center;gap:10px}
+header h1{font-family:var(--serif);font-size:16px;letter-spacing:.08em;margin:0;color:var(--champ);flex:1;font-weight:700}
+header h1 small{display:block;white-space:nowrap;font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;color:var(--mute);font-weight:400;margin-top:1px}
+.hbtn{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:7px 11px;font:500 12px var(--sans);cursor:pointer}
+.hbtn.gold{border-color:var(--gold);color:var(--gold)}
+main{max-width:880px;margin:0 auto;padding:16px}
+.view{display:none}.view.on{display:block;animation:fade .25s}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+h2{font-family:var(--serif);font-size:20px;color:var(--champ);margin:4px 0 6px;letter-spacing:.04em}
+p.lead{color:var(--mute);margin:0 0 14px}
+.card{background:var(--s1);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.tag{font:500 10px var(--mono);letter-spacing:.08em;text-transform:uppercase;padding:3px 7px;border-radius:5px;border:1px solid var(--line);color:var(--mute)}
+.tag.sim{color:var(--blue);border-color:#2f4673}.tag.real{color:var(--green);border-color:#2f6b4b}.tag.gold{color:var(--gold);border-color:#6b5a2c}
+button.pri{background:var(--gold);color:#17130a;border:0;border-radius:9px;padding:10px 16px;font:700 13px var(--sans);cursor:pointer}
+button.pri:disabled{opacity:.4;cursor:default}
+button.sec{background:transparent;color:var(--text);border:1px solid var(--line);border-radius:9px;padding:9px 14px;font:500 13px var(--sans);cursor:pointer}
+button.sec:hover,.hbtn:hover{border-color:var(--gold)}
+label{display:block;font:500 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--mute);margin:10px 0 5px}
+select,input[type=text],input[type=password],input[type=number],textarea{width:100%;background:var(--s2);color:var(--text);border:1px solid var(--line);border-radius:9px;padding:10px;font:14px var(--sans)}
+textarea{min-height:84px;resize:vertical}
+input[type=range]{width:100%;accent-color:var(--gold)}
+pre.out{background:#0d0d10;border:1px solid var(--line);border-radius:10px;padding:12px;font:12.5px/1.55 var(--mono);white-space:pre-wrap;word-break:break-word;color:#d9d4c7;margin:10px 0 0}
+/* stages */
+.stage{border-left:3px solid var(--c,var(--gold));cursor:pointer}
+.stage .top{display:flex;align-items:center;gap:10px}
+.stage .num{font:500 11px var(--mono);color:var(--c,var(--gold))}
+.stage h3{margin:0;font-size:16px;flex:1}
+.stage .sub{color:var(--mute);font-size:13px;margin-top:4px}
+.stage .more{display:none;margin-top:12px;border-top:1px dashed var(--line);padding-top:10px}
+.stage.open .more{display:block}
+.stage .chev{color:var(--mute);transition:transform .2s}.stage.open .chev{transform:rotate(90deg)}
+.kv{display:grid;grid-template-columns:110px 1fr;gap:6px 10px;font-size:13.5px}
+.kv b{color:var(--mute);font:500 10.5px var(--mono);text-transform:uppercase;letter-spacing:.06em;padding-top:3px}
+.kv ul{margin:0;padding-left:16px}
+/* simulator */
+.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px}
+.chip{flex:1 0 auto;min-width:78px;text-align:center;border:1px solid var(--line);border-radius:9px;padding:7px 6px;font-size:12px;color:var(--mute);background:var(--s1)}
+.chip.active{border-color:var(--gold);color:var(--gold);box-shadow:0 0 0 1px var(--gold) inset}
+.chip.gate{border-color:var(--red);color:var(--red);animation:pulse 1s infinite}
+.chip.done{border-color:#2f6b4b;color:var(--green)}
+@keyframes pulse{50%{opacity:.55}}
+.log{background:#0d0d10;border:1px solid var(--line);border-radius:10px;padding:10px;font:12px/1.6 var(--mono);min-height:150px;max-height:300px;overflow:auto}
+.log div{margin-bottom:3px}.log .a{color:var(--champ)}.log .h{color:var(--red)}.log .ok{color:var(--green)}.log .m{color:var(--mute)}
+.gatebox{display:none;border:1px solid var(--red);background:#1a1011;border-radius:10px;padding:12px;margin-top:10px}
+.gatebox.on{display:block}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.stat{background:var(--s2);border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center}
+.stat b{display:block;font:500 20px var(--mono);color:var(--champ)}.stat span{font-size:11px;color:var(--mute)}
+.seg{display:flex;gap:6px}.seg button{flex:1;padding:9px 6px;font:500 12.5px var(--sans);background:var(--s2);border:1px solid var(--line);border-radius:9px;color:var(--mute);cursor:pointer}
+.seg button.on{border-color:var(--gold);color:var(--gold);background:#1c1810}
+/* roi */
+.bar{height:14px;border-radius:7px;background:var(--s2);overflow:hidden;position:relative;margin:3px 0 9px}
+.bar i{display:block;height:100%;border-radius:7px}
+.barlbl{display:flex;justify-content:space-between;font-size:12.5px}
+.barlbl span:last-child{font-family:var(--mono);color:var(--mute)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mini{display:grid;grid-template-columns:1fr 70px 70px;gap:8px;align-items:center;font-size:13px;margin-bottom:6px}
+.mini input{padding:7px;text-align:center}
+.big{font:500 30px var(--mono);color:var(--gold)}
+/* ready */
+.q{padding:12px 0;border-bottom:1px solid var(--line)}
+.q:last-child{border:0}
+.q p{margin:0 0 8px;font-size:14px}
+.dim{font:500 10px var(--mono);color:var(--gold);letter-spacing:.08em;text-transform:uppercase}
+/* playbook */
+details{background:var(--s1);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px}
+summary{cursor:pointer;font-weight:700;color:var(--champ)}
+details ul{margin:8px 0 0;padding-left:18px}details li{margin-bottom:5px}
+.chk{display:flex;gap:10px;align-items:flex-start;padding:7px 0;font-size:14px}
+.chk input{margin-top:4px;accent-color:var(--gold);width:16px;height:16px}
+/* nav */
+nav{position:fixed;left:0;right:0;bottom:0;z-index:30;background:rgba(14,14,16,.96);backdrop-filter:blur(10px);border-top:1px solid var(--line);display:flex;padding:6px 6px calc(6px + env(safe-area-inset-bottom))}
+nav button{flex:1;background:none;border:0;color:var(--mute);font:500 10.5px var(--sans);padding:6px 2px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;border-radius:8px}
+nav button span{font-size:18px;line-height:1}
+nav button.on{color:var(--gold)}
+footer{text-align:center;color:var(--mute);font:10.5px var(--mono);letter-spacing:.04em;padding:20px 0 6px}
+dialog{background:var(--s1);color:var(--text);border:1px solid var(--gold);border-radius:14px;max-width:420px;width:92%;padding:18px}
+dialog::backdrop{background:rgba(0,0,0,.7)}
+.note{font-size:12px;color:var(--mute);margin-top:8px}
+@media(max-width:520px){.kv{grid-template-columns:1fr}.kv b{padding-top:6px}.grid2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <h1>AGENTIC SDLC LAB<small>PLAN · DESIGN · BUILD · SECURE · SHIP</small></h1>
+  <button class="hbtn gold" id="installBtn" hidden>Install</button>
+  <button class="hbtn" id="setBtn" aria-label="Settings">⚙ Key</button>
+</header>
+
+<main>
+<!-- STAGES -->
+<section class="view on" id="v-stages">
+  <h2>From code generation to a full-lifecycle agent system</h2>
+  <p class="lead">Autocomplete speeds up typing. Agents remove waiting. Tap a stage to see the bottleneck it removes, what the agent does, and where a human stays in the loop.</p>
+  <div id="stageList"></div>
+  <div class="card">
+    <span class="tag gold">Core principle</span>
+    <p style="margin:8px 0 0">Agents own the <b>work</b> in each stage. Humans own the <b>decisions</b> at the gates. Speed comes from removing hand-off delays, not from removing review.</p>
+  </div>
+</section>
+
+<!-- SIMULATOR -->
+<section class="view" id="v-sim">
+  <h2>Pipeline simulator</h2>
+  <p class="lead">Run one feature through all six agents. Pick how much autonomy to grant and approve the gates yourself. <span class="tag sim">SIMULATED</span></p>
+  <div class="card">
+    <label>Work item</label>
+    <select id="simFeature"></select>
+    <label>Autonomy level</label>
+    <div class="seg" id="simAuto">
+      <button data-a="assist">Assist<br><small>6 gates</small></button>
+      <button data-a="supervised" class="on">Supervised<br><small>4 gates</small></button>
+      <button data-a="autonomous">Autonomous<br><small>1 gate</small></button>
+    </div>
+    <p class="note" id="autoNote"></p>
+    <div class="row" style="margin-top:12px"><button class="pri" id="simRun">▶ Run pipeline</button><button class="sec" id="simReset">Reset</button></div>
+  </div>
+  <div class="chips" id="simChips"></div>
+  <div class="log" id="simLog"><div class="m">Press Run to start.</div></div>
+  <div class="gatebox" id="gateBox">
+    <b style="color:var(--red)">⛔ Human gate</b>
+    <div id="gateText" style="margin:6px 0 10px;font-size:13.5px"></div>
+    <div class="row"><button class="pri" id="gOk">Approve</button><button class="sec" id="gNo">Request changes</button></div>
+  </div>
+  <div class="stats">
+    <div class="stat"><b id="stElapsed">0h</b><span>elapsed (incl. review wait)</span></div>
+    <div class="stat"><b id="stAgent">0m</b><span>agent work time</span></div>
+    <div class="stat"><b id="stGates">0</b><span>human gates passed</span></div>
+  </div>
+  <div class="card" id="simSummary" style="display:none;margin-top:12px"></div>
+  <p class="note">Assumptions: agent minutes per stage are illustrative; each gate adds 90 min review wait and 20 min of active human time. Compare with roughly 60 hours of hands-on effort for the same item done manually. Not a benchmark.</p>
+</section>
+
+<!-- BRIEF -->
+<section class="view" id="v-brief">
+  <h2>Agent brief builder</h2>
+  <p class="lead">Agents fail on vague instructions. Generate a structured brief with scope, tools, stop conditions and a human checkpoint, then paste it into your agent tool.</p>
+  <div class="card">
+    <label>Stage / agent</label><select id="brStage"></select>
+    <label>Task in plain words</label>
+    <textarea id="brTask" placeholder="e.g. Add rate limiting to the public orders API without breaking existing clients"></textarea>
+    <label>Extra constraints (optional)</label>
+    <input type="text" id="brCons" placeholder="e.g. Node 20, no new dependencies, must keep p95 under 200ms">
+    <div class="row" style="margin-top:12px">
+      <button class="pri" id="brGen">Generate brief</button>
+      <button class="sec" id="brCopy" disabled>Copy</button>
+      <span class="tag" id="brMode">TEMPLATE</span>
+    </div>
+    <pre class="out" id="brOut" style="display:none"></pre>
+    <p class="note">Without an API key this uses a built-in template (<b>SIMULATED</b>). Add your Anthropic key under ⚙ Key and Claude will tailor the brief (<b>REAL</b>). Your key stays in this browser only.</p>
+  </div>
+</section>
+
+<!-- ROI -->
+<section class="view" id="v-roi">
+  <h2>Bottleneck &amp; lead-time model</h2>
+  <p class="lead">Enter your typical days per stage and how much an agent could realistically cut. See the new end-to-end lead time. <span class="tag sim">MODEL</span></p>
+  <div class="card">
+    <div class="mini" style="color:var(--mute);font:10.5px var(--mono)"><span>STAGE</span><span style="text-align:center">DAYS NOW</span><span style="text-align:center">CUT %</span></div>
+    <div id="roiRows"></div>
+    <label>Adoption level: <span id="adoptVal">60</span>% of work flows through agents</label>
+    <input type="range" id="adopt" min="0" max="100" value="60">
+    <label>Review overhead added back: <span id="ovhVal">10</span>% of saved time</label>
+    <input type="range" id="ovh" min="0" max="40" value="10">
+  </div>
+  <div class="card">
+    <div class="grid2">
+      <div><div class="note" style="margin:0">Lead time now</div><div class="big" id="roiBefore">0d</div></div>
+      <div><div class="note" style="margin:0">With agents</div><div class="big" id="roiAfter" style="color:var(--green)">0d</div></div>
+    </div>
+    <p style="margin:8px 0 12px" id="roiMsg"></p>
+    <div id="roiBars"></div>
+    <p class="note">Illustrative defaults, not benchmarks. Replace them with your own cycle-time data from your tracker or DORA dashboard. Agents mostly cut waiting and rework, so start by measuring where work sits idle.</p>
+  </div>
+</section>
+
+<!-- READY -->
+<section class="view" id="v-ready">
+  <h2>Readiness check</h2>
+  <p class="lead">Agents amplify your engineering foundations, good or bad. Answer 12 quick questions to see where to invest first.</p>
+  <div class="card" id="readyQs"></div>
+  <div class="card" id="readyRes" style="display:none"></div>
+</section>
+
+<!-- PLAYBOOK -->
+<section class="view" id="v-play">
+  <h2>Rollout playbook</h2>
+  <p class="lead">A practical 90-day path, guardrails to tick off, and the metrics that tell you it is working.</p>
+  <details open><summary>30 · 60 · 90 day plan</summary>
+    <ul>
+      <li><b>Days 0-30 · Prove it small.</b> One team, one low-risk workflow (test generation, dependency upgrades, PR summaries). Baseline your DORA metrics. Run every agent in <i>Assist</i> mode.</li>
+      <li><b>Days 31-60 · Connect the stages.</b> Add the Planning and Security agents. Move to PR-based agent work with policy-as-code checks. Track review time and agent PR acceptance rate.</li>
+      <li><b>Days 61-90 · Earn autonomy.</b> Allow <i>Supervised</i> autonomy for refactors and upgrades where tests are strong. Keep prod deploys human-approved. Review incidents, cost per merged PR, then expand to more teams.</li>
+    </ul>
+  </details>
+  <details open><summary>Guardrails checklist <span class="tag" id="gcount" style="margin-left:6px"></span></summary><div id="guardList"></div></details>
+  <details><summary>Metrics that matter</summary>
+    <ul>
+      <li><b>Lead time for changes</b> and <b>PR cycle time</b> (the speed outcome)</li>
+      <li><b>Change failure rate</b> and <b>escaped defects</b> (the quality guard)</li>
+      <li><b>Agent PR acceptance rate</b> and <b>review load per engineer</b> (the trust signal)</li>
+      <li><b>Cost per merged PR</b> and <b>MTTR</b> (the economics and resilience)</li>
+    </ul>
+  </details>
+  <details><summary>Anti-patterns to avoid</summary>
+    <ul>
+      <li>Giant agent PRs nobody can review. Cap PR size and require small, tested slices.</li>
+      <li>Agents without tests. No safety net means no autonomy.</li>
+      <li>Giving agents production credentials. Sandbox first, least privilege always.</li>
+      <li>Measuring lines of code or tokens. Measure delivered, working change.</li>
+      <li>Skipping design and planning because "the agent will figure it out".</li>
+      <li>No owner. Every agent needs a named human accountable for its output.</li>
+    </ul>
+  </details>
+</section>
+
+<footer>Designed &amp; Architected by Krishnamurthy Kandregula · Made by Claude</footer>
+</main>
+
+<nav id="nav">
+  <button data-v="stages" class="on"><span>◈</span>Stages</button>
+  <button data-v="sim"><span>▶</span>Simulate</button>
+  <button data-v="brief"><span>✎</span>Brief</button>
+  <button data-v="roi"><span>⏱</span>Impact</button>
+  <button data-v="ready"><span>✓</span>Ready</button>
+  <button data-v="play"><span>❖</span>Playbook</button>
+</nav>
+
+<dialog id="keyDlg">
+  <h2 style="font-size:16px">Anthropic API key (optional)</h2>
+  <p class="note" style="margin-top:0">Enables REAL mode in the Brief builder. Stored only in this browser's localStorage and sent only to api.anthropic.com. Without it, the app works in SIMULATED mode.</p>
+  <input type="password" id="keyInp" placeholder="sk-ant-..." autocomplete="off">
+  <div class="row" style="margin-top:12px">
+    <button class="pri" id="keySave">Save</button><button class="sec" id="keyClear">Clear</button><button class="sec" id="keyClose">Close</button>
+  </div>
+  <p class="note">iPhone: tap Share → Add to Home Screen. Android/desktop: use the Install button.</p>
+</dialog>
+
+<script>
+'use strict';
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem('asl_'+k); return v===null?d:JSON.parse(v); }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem('asl_'+k, JSON.stringify(v)); }catch(e){} }
+};
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+/* ---------- DATA ---------- */
+const STAGES = [
+ {id:'plan', name:'Plan', color:'#d8b45f', agent:'Planning Agent', mins:12, days:3, cut:40,
+  bottleneck:'Vague requirements, slow estimation, backlog grooming, hidden dependencies.',
+  does:['Turns issues, PRDs and support tickets into specs with acceptance criteria','Splits work into a task graph with estimates and dependencies','Flags gaps, conflicts and risky assumptions before coding starts'],
+  gate:'Product owner approves scope and priority. The agent never changes priority.',
+  guard:'Read-only on code. Write access to the tracker only.', metric:'Time from idea to ready-to-build',
+  tools:'Issue tracker, docs, repo (read-only), analytics', stop:'Requirements conflict, or the scope exceeds one sprint', output:'Spec + acceptance criteria + task list with estimates',
+  context:'Product goals, user stories, past tickets, domain glossary'},
+ {id:'design', name:'Design', color:'#7aa7ff', agent:'Architecture Agent', mins:18, days:3, cut:30,
+  bottleneck:'Design debates, missing context on existing systems, undocumented decisions.',
+  does:['Drafts options with trade-offs and a recommended ADR','Generates API contracts, data models and sequence diagrams','Starts a threat model and checks fit with existing architecture'],
+  gate:'Architect approves the ADR before any build work begins.',
+  guard:'Proposes only. Cannot merge or change infrastructure.', metric:'Design review turnaround; ADR coverage',
+  tools:'Repo (read-only), ADR folder, diagram tools', stop:'Change touches shared platform or data contracts', output:'ADR + API contract + diagram + risks',
+  context:'Existing ADRs, service map, API schemas, non-functional targets'},
+ {id:'build', name:'Build', color:'#6fcf97', agent:'Coding Agent', mins:45, days:8, cut:35,
+  bottleneck:'Boilerplate, context switching, waiting for a free engineer, slow test writing.',
+  does:['Implements tasks on a branch with tests, in small reviewable PRs','Runs the build and tests itself and fixes its own failures','Writes a clear PR description linking back to the spec'],
+  gate:'Engineer reviews and approves every PR.',
+  guard:'Sandboxed workspace, scoped token, PR size limit, no prod access.', metric:'PR cycle time; agent PR acceptance rate',
+  tools:'Repo (branch write), sandboxed shell, test runner, linter', stop:'Tests keep failing after 3 attempts, or the change grows past the PR limit', output:'Small PR with tests, passing CI and a description',
+  context:'Spec, ADR, coding standards, related files and tests'},
+ {id:'refactor', name:'Refactor', color:'#be8cff', agent:'Refactoring Agent', mins:25, days:3, cut:50,
+  bottleneck:'Tech debt nobody has time for, risky migrations, dependency upgrades.',
+  does:['Adds characterization tests, then restructures code without changing behavior','Runs framework and dependency upgrades across many files','Removes dead code and flags duplicated logic'],
+  gate:'Green tests plus reviewer sign-off. Behavior must be unchanged.',
+  guard:'Only on code with adequate test coverage. Never mixed with feature changes.', metric:'Debt burn-down; time per migration',
+  tools:'Repo (branch write), AST tools, test runner, coverage', stop:'Coverage is too low to prove behavior is preserved', output:'Behavior-preserving PRs in small batches',
+  context:'Coverage report, upgrade guides, style rules, hotspot list'},
+ {id:'security', name:'Secure', color:'#eb6b6b', agent:'Security Validation Agent', mins:20, days:4, cut:55,
+  bottleneck:'Late security reviews, alert fatigue, slow triage, fixes queued behind features.',
+  does:['Runs SAST, dependency, secret and config scans on every PR','Triages findings, removes false positives and ranks real risk','Opens fix PRs and generates abuse-case tests'],
+  gate:'Security owner approves any high or critical finding and any exception.',
+  guard:'Policy as code. Can block a merge, cannot waive its own findings.', metric:'Time to remediate; escaped vulnerabilities',
+  tools:'SAST/SCA scanners, secret scanner, threat model, repo (branch write)', stop:'High-severity finding, or a secret exposure', output:'Triaged findings + fix PRs + security tests',
+  context:'Threat model, security policy, dependency list, past findings'},
+ {id:'ship', name:'Ship', color:'#e8d5a3', agent:'Release & Ops Agent', mins:15, days:2, cut:40,
+  bottleneck:'Flaky pipelines, manual release notes, slow incident diagnosis.',
+  does:['Triages CI failures and proposes fixes or retries','Writes release notes and change summaries','Watches canary metrics and proposes rollback with evidence'],
+  gate:'A human approves production deploys and rollbacks.',
+  guard:'No direct prod access. Acts through the pipeline with feature flags.', metric:'Deploy frequency; change failure rate; MTTR',
+  tools:'CI/CD, feature flags, observability (read), chat', stop:'Canary regression, or error budget burn above threshold', output:'Release notes + canary report + rollback proposal',
+  context:'Runbooks, SLOs, dashboards, recent incidents'}
+];
+
+const FEATURES = {
+ sso:{name:'Add SSO login (OIDC)', high:false, logs:{
+  plan:['Parsed ticket SEC-214 → 7 acceptance criteria','Task graph: provider config, callback route, session mapping, tests'],
+  design:['ADR-031 drafted: OIDC via existing auth service vs new gateway','Contract: GET /auth/oidc/callback; threat model notes added'],
+  build:['Branch feat/oidc-login created, 4 files changed','Added 12 tests; CI green on attempt 2 after fixing a redirect URI bug'],
+  refactor:['Extracted session helper shared by 3 login paths','Characterization tests pass; no behavior change'],
+  security:['SAST clean; nonce + state validation tests generated','1 medium finding: missing token expiry check → fix PR opened'],
+  ship:['Release notes drafted','Canary 5%: login errors flat, latency +4ms → within SLO']}},
+ pay:{name:'Migrate payments API to v2', high:true, logs:{
+  plan:['Mapped 23 call sites and 3 downstream consumers','Flagged risk: refund webhook semantics changed in v2'],
+  design:['ADR-044: adapter layer with dual-write for 2 weeks','Contract diff generated; idempotency key strategy proposed'],
+  build:['Adapter + v2 client implemented in 6 small PRs','Contract tests added; 2 flaky tests quarantined with tickets'],
+  refactor:['Removed 410 lines of dead v1 retry code','Upgraded SDK across 9 services; all tests green'],
+  security:['HIGH: API key logged in debug output → blocked merge','Fix PR opened; secret rotated via runbook; regression test added'],
+  ship:['Release notes + customer-facing changelog drafted','Canary 1%: payment success rate stable; rollback plan attached']}},
+ perf:{name:'Cut p95 latency on search', high:false, logs:{
+  plan:['Pulled traces: 62% of time in N+1 product lookups','Target set: p95 under 300ms'],
+  design:['ADR-052: batch lookup + short-TTL cache vs denormalized index','Cache invalidation rules documented'],
+  build:['Batch loader implemented with benchmarks in the PR','Load test: p95 480ms → 270ms in staging'],
+  refactor:['Consolidated 3 duplicate query builders','Coverage on search module raised from 61% to 84%'],
+  security:['Dependency scan clean','Cache-key injection test added; no findings']  ,
+  ship:['Canary 10%: p95 down 38%, error rate flat','Release notes drafted; flag ramp plan proposed']}}
+};
+const AUTO = {
+ assist:{gates:['plan','design','build','refactor','security','ship'], note:'Human approves every stage. Safest start; slowest because every hand-off waits on review.'},
+ supervised:{gates:['plan','build','security','ship'], note:'Agents move design and refactor forward on their own, humans gate scope, code, security and release.'},
+ autonomous:{gates:['ship'], note:'Only production release is gated, plus any high-severity security finding. Needs strong tests and policy-as-code.'}
+};
+const GATE_WAIT = 90, GATE_ACTIVE = 20, BASELINE_H = 60;
+
+const QS = [
+ ['Specs','Work items have written acceptance criteria.','Without clear specs, agents build the wrong thing quickly.'],
+ ['Specs','Architecture decisions are documented where an agent can read them (ADRs, READMEs).','Write down the "why": ADRs, service maps and a coding-standards file.'],
+ ['Tests','Automated tests catch regressions and you trust a green build.','Raise coverage on critical paths before granting autonomy.'],
+ ['Tests','The full test suite runs in minutes, not hours.','Slow tests throttle every agent loop. Parallelize and split the suite.'],
+ ['CI/CD','Every change goes through a pull request and a CI pipeline.','Route all change, human or agent, through PR + CI first.'],
+ ['CI/CD','You can deploy safely and roll back fast (flags, canary).','Add feature flags and canary releases so mistakes are cheap.'],
+ ['Security','SAST, dependency and secret scanning run on every PR.','Turn on scanners in CI so the Security Agent has signals to triage.'],
+ ['Security','Automation runs with least-privilege credentials in sandboxes.','Create scoped tokens and sandboxed environments for agents.'],
+ ['Metrics','You track lead time, deploy frequency, failure rate and MTTR.','Baseline DORA metrics now. You cannot prove speed without a before.'],
+ ['Metrics','You can spot a regression within minutes of a release.','Invest in alerts, SLOs and dashboards the Release agent can read.'],
+ ['Governance','There is a clear policy on what agents may and may not change.','Write a one-page agent policy: scopes, gates, forbidden actions.'],
+ ['Governance','Agent actions are logged and attributable to a human owner.','Add audit logs and name an accountable owner per agent.']
+];
+
+const GUARDS = ['Agents run in sandboxed environments','Scoped, short-lived tokens (least privilege)','No direct production access for any agent','Hard PR size limit enforced in CI','Human approval required for prod deploys','Secrets never placed in prompts or logs','Every agent action is logged with an owner','A kill switch can pause all agents instantly','Agent changes are evaluated against a test suite before autonomy is raised'];
+
+/* ---------- NAV ---------- */
+$('#nav').addEventListener('click', e => {
+  const b = e.target.closest('button'); if(!b) return;
+  $$('#nav button').forEach(x => x.classList.toggle('on', x === b));
+  $$('.view').forEach(v => v.classList.toggle('on', v.id === 'v-' + b.dataset.v));
+  window.scrollTo({top:0});
+});
+
+/* ---------- STAGES ---------- */
+(function(){
+  const el = $('#stageList');
+  el.innerHTML = STAGES.map((s,i) => `
+   <div class="card stage" style="--c:${s.color}" data-i="${i}">
+     <div class="top"><span class="num">0${i+1}</span><h3>${s.name} · ${s.agent}</h3><span class="chev">›</span></div>
+     <div class="sub">Removes: ${s.bottleneck}</div>
+     <div class="more"><div class="kv">
+       <b>Agent does</b><ul>${s.does.map(d=>`<li>${d}</li>`).join('')}</ul>
+       <b>Human gate</b><div>${s.gate}</div>
+       <b>Guardrail</b><div>${s.guard}</div>
+       <b>Measure</b><div>${s.metric}</div>
+     </div></div>
+   </div>`).join('');
+  el.addEventListener('click', e => { const c = e.target.closest('.stage'); if(c) c.classList.toggle('open'); });
+})();
+
+/* ---------- SIMULATOR ---------- */
+let autoLvl = 'supervised', runId = 0, gateResolve = null, sim = {};
+$('#simFeature').innerHTML = Object.entries(FEATURES).map(([k,f]) => `<option value="${k}">${f.name}</option>`).join('');
+function fmtH(min){ return (min/60).toFixed(1) + 'h'; }
+function renderChips(states){
+  $('#simChips').innerHTML = STAGES.map((s,i) => `<div class="chip ${states[i]||''}">${s.name}</div>`).join('');
+}
+function addLog(t, cls){
+  const d = document.createElement('div'); d.className = cls || ''; d.textContent = t;
+  const l = $('#simLog'); l.appendChild(d); l.scrollTop = l.scrollHeight;
+}
+function updStats(){
+  $('#stElapsed').textContent = fmtH(sim.elapsed); $('#stAgent').textContent = sim.agent + 'm'; $('#stGates').textContent = sim.gates;
+}
+function setAuto(a){
+  autoLvl = a;
+  $$('#simAuto button').forEach(b => b.classList.toggle('on', b.dataset.a === a));
+  $('#autoNote').textContent = AUTO[a].note;
+}
+$('#simAuto').addEventListener('click', e => { const b = e.target.closest('button'); if(b){ setAuto(b.dataset.a); resetSim(); } });
+$('#simFeature').addEventListener('change', resetSim);
+function resetSim(){
+  runId++; if(gateResolve){ gateResolve(null); gateResolve = null; }
+  sim = {elapsed:0, agent:0, gates:0, rework:0};
+  $('#simLog').innerHTML = '<div class="m">Press Run to start.</div>';
+  $('#gateBox').classList.remove('on'); $('#simSummary').style.display = 'none';
+  $('#simRun').disabled = false; renderChips([]); updStats();
+}
+function askGate(i){
+  return new Promise(res => {
+    gateResolve = res;
+    $('#gateText').textContent = STAGES[i].gate;
+    $('#gateBox').classList.add('on');
+  });
+}
+$('#gOk').onclick = () => { if(gateResolve){ const r = gateResolve; gateResolve = null; $('#gateBox').classList.remove('on'); r('ok'); } };
+$('#gNo').onclick = () => { if(gateResolve){ const r = gateResolve; gateResolve = null; $('#gateBox').classList.remove('on'); r('changes'); } };
+$('#simReset').onclick = resetSim;
+$('#simRun').onclick = async () => {
+  resetSim(); const my = runId; const f = FEATURES[$('#simFeature').value];
+  $('#simRun').disabled = true; $('#simLog').innerHTML = '';
+  addLog('▶ Work item: ' + f.name, 'a'); addLog('Autonomy: ' + autoLvl, 'm');
+  const states = [];
+  for(let i = 0; i < STAGES.length; i++){
+    const s = STAGES[i];
+    states[i] = 'active'; renderChips(states);
+    addLog('— ' + s.agent, 'a');
+    for(const line of f.logs[s.id]){
+      await sleep(600); if(my !== runId) return;
+      addLog('  ' + line, line.startsWith('HIGH') ? 'h' : '');
+    }
+    sim.agent += s.mins; sim.elapsed += s.mins; updStats();
+    const needGate = AUTO[autoLvl].gates.includes(s.id) || (s.id === 'security' && f.high);
+    if(needGate){
+      states[i] = 'gate'; renderChips(states);
+      addLog('  ⛔ waiting for human gate…', 'h');
+      const r = await askGate(i); if(my !== runId || r === null) return;
+      if(r === 'changes'){
+        addLog('  ↺ Reviewer requested changes. Agent revising…', 'm');
+        await sleep(700); if(my !== runId) return;
+        sim.rework++; sim.agent += Math.round(s.mins/2); sim.elapsed += Math.round(s.mins/2) + GATE_WAIT;
+      }
+      sim.gates++; sim.elapsed += GATE_WAIT; sim.humanActive = (sim.humanActive||0) + GATE_ACTIVE;
+      addLog('  ✓ Approved', 'ok'); updStats();
+    }
+    states[i] = 'done'; renderChips(states);
+  }
+  addLog('✔ Pipeline complete', 'ok');
+  const act = (sim.humanActive||0);
+  const sum = $('#simSummary');
+  sum.style.display = 'block';
+  sum.innerHTML = `<b style="color:var(--champ)">Result</b><p style="margin:6px 0 0">End to end in <b>${fmtH(sim.elapsed)}</b> of clock time with only <b>${fmtH(act)}</b> of active human review across ${sim.gates} gate${sim.gates===1?'':'s'}${sim.rework?` (${sim.rework} rework loop${sim.rework>1?'s':''})`:''}. Manual baseline: about ${BASELINE_H}h of hands-on effort. ${autoLvl==='assist'?'Try Supervised to see how fewer gates cut waiting.':autoLvl==='autonomous'?'Fastest, but only safe when tests and policy-as-code are strong.':'A balanced default: humans decide, agents do the work.'}</p>`;
+  $('#simRun').disabled = false;
+};
+setAuto('supervised'); renderChips([]);
+
+/* ---------- BRIEF ---------- */
+$('#brStage').innerHTML = STAGES.map(s => `<option value="${s.id}">${s.name} · ${s.agent}</option>`).join('');
+let briefText = '';
+function templateBrief(s, task, cons){
+  return `# ${s.agent} brief
+
+GOAL
+${task}
+
+CONTEXT TO LOAD FIRST
+- ${s.context}
+${cons ? `\nCONSTRAINTS\n- ${cons}\n- ${s.guard}\n` : `\nCONSTRAINTS\n- ${s.guard}\n`}
+TOOLS ALLOWED
+- ${s.tools}
+
+DO
+${s.does.map(d => '- ' + d).join('\n')}
+
+STOP AND ESCALATE WHEN
+- ${s.stop}
+- You are unsure, or the request conflicts with the context above
+
+HUMAN CHECKPOINT
+- ${s.gate}
+
+OUTPUT FORMAT
+- ${s.output}
+- List assumptions you made and anything you did not verify
+
+SUCCESS MEASURE
+- ${s.metric}`;
+}
+function setMode(real){
+  const t = $('#brMode'); t.textContent = real ? 'REAL · CLAUDE API' : 'SIMULATED · TEMPLATE'; t.className = 'tag ' + (real ? 'real' : 'sim');
+}
+setMode(false);
+$('#brGen').onclick = async () => {
+  const s = STAGES.find(x => x.id === $('#brStage').value);
+  const task = $('#brTask').value.trim(), cons = $('#brCons').value.trim();
+  if(!task){ $('#brTask').focus(); return; }
+  const out = $('#brOut'); out.style.display = 'block';
+  const key = store.get('key', '');
+  let text = templateBrief(s, task, cons), real = false;
+  if(key){
+    out.textContent = 'Asking Claude…'; $('#brGen').disabled = true;
+    try{
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method:'POST',
+        headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+        body: JSON.stringify({model:'claude-sonnet-5-5', max_tokens:1400,
+          system:'You write precise briefs for autonomous software-engineering agents. Output a plain-text brief with these headings: GOAL, CONTEXT TO LOAD FIRST, CONSTRAINTS, TOOLS ALLOWED, STEPS, ACCEPTANCE CRITERIA, STOP AND ESCALATE WHEN, HUMAN CHECKPOINT, OUTPUT FORMAT. Be specific, concise and testable. No preamble.',
+          messages:[{role:'user', content:`Agent: ${s.agent} (${s.name} stage)\nAgent role: ${s.does.join('; ')}\nRequired human gate: ${s.gate}\nGuardrail: ${s.guard}\nAllowed tools: ${s.tools}\n\nTask: ${task}\nExtra constraints: ${cons || 'none'}`}]})
+      });
+      const data = await res.json();
+      if(!res.ok) throw new Error((data.error && data.error.message) || ('HTTP ' + res.status));
+      text = (data.content || []).map(c => c.text || '').join('').trim() || text; real = true;
+    }catch(err){
+      text = templateBrief(s, task, cons) + '\n\n[API call failed: ' + err.message + ' — showing template instead]';
+    }
+    $('#brGen').disabled = false;
+  }
+  briefText = text; out.textContent = text; setMode(real); $('#brCopy').disabled = false;
+};
+$('#brCopy').onclick = async () => {
+  try{ await navigator.clipboard.writeText(briefText); $('#brCopy').textContent = 'Copied ✓'; }
+  catch(e){ const r = document.createRange(); r.selectNodeContents($('#brOut')); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); $('#brCopy').textContent = 'Selected'; }
+  setTimeout(() => $('#brCopy').textContent = 'Copy', 1500);
+};
+
+/* ---------- ROI ---------- */
+let roi = store.get('roi', null) || STAGES.map(s => ({d:s.days, c:s.cut}));
+if(roi.length !== STAGES.length) roi = STAGES.map(s => ({d:s.days, c:s.cut}));
+$('#roiRows').innerHTML = STAGES.map((s,i) => `<div class="mini"><span>${s.name}</span><input type="number" min="0" step="0.5" data-i="${i}" data-k="d" value="${roi[i].d}"><input type="number" min="0" max="90" data-i="${i}" data-k="c" value="${roi[i].c}"></div>`).join('');
+$('#adopt').value = store.get('adopt', 60); $('#ovh').value = store.get('ovh', 10);
+function calcRoi(){
+  const ad = +$('#adopt').value / 100, ov = +$('#ovh').value / 100;
+  $('#adoptVal').textContent = Math.round(ad*100); $('#ovhVal').textContent = Math.round(ov*100);
+  let before = 0, after = 0; const rows = [];
+  STAGES.forEach((s,i) => {
+    const d = Math.max(0, +roi[i].d || 0), c = Math.min(90, Math.max(0, +roi[i].c || 0)) / 100;
+    const saved = d * c * ad, a = d - saved * (1 - ov);
+    before += d; after += a; rows.push({n:s.name, d, a, col:s.color});
+  });
+  $('#roiBefore').textContent = before.toFixed(1) + 'd'; $('#roiAfter').textContent = after.toFixed(1) + 'd';
+  const pct = before ? Math.round((1 - after/before) * 100) : 0;
+  $('#roiMsg').innerHTML = before ? `Estimated <b style="color:var(--green)">${pct}% faster</b> end to end, saving about <b>${(before-after).toFixed(1)} days</b> per change.` : 'Enter your days per stage.';
+  const mx = Math.max(1, ...rows.map(r => r.d));
+  $('#roiBars').innerHTML = rows.map(r => `<div class="barlbl"><span>${r.n}</span><span>${r.d.toFixed(1)}d → ${r.a.toFixed(1)}d</span></div><div class="bar"><i style="width:${r.d/mx*100}%;background:#3a3a42;position:absolute"></i><i style="width:${r.a/mx*100}%;background:${r.col};position:absolute"></i></div>`).join('');
+  store.set('roi', roi); store.set('adopt', $('#adopt').value); store.set('ovh', $('#ovh').value);
+}
+$('#roiRows').addEventListener('input', e => { const t = e.target; roi[+t.dataset.i][t.dataset.k] = +t.value; calcRoi(); });
+$('#adopt').oninput = calcRoi; $('#ovh').oninput = calcRoi; calcRoi();
+
+/* ---------- READINESS ---------- */
+let ans = store.get('ans', {});
+function renderQs(){
+  $('#readyQs').innerHTML = QS.map((q,i) => `<div class="q"><div class="dim">${q[0]}</div><p>${q[1]}</p>
+    <div class="seg" data-q="${i}">${[['2','Yes'],['1','Partly'],['0','No']].map(([v,l]) => `<button data-v="${v}" class="${ans[i]===v?'on':''}">${l}</button>`).join('')}</div></div>`).join('')
+    + `<div class="row" style="margin-top:12px"><button class="pri" id="readyGo">See my result</button><button class="sec" id="readyReset">Reset</button></div>`;
+}
+$('#readyQs').addEventListener('click', e => {
+  const b = e.target.closest('button'); if(!b) return;
+  if(b.id === 'readyGo'){ showReady(); return; }
+  if(b.id === 'readyReset'){ ans = {}; store.set('ans', ans); renderQs(); $('#readyRes').style.display = 'none'; return; }
+  const q = b.parentElement.dataset.q; ans[q] = b.dataset.v; store.set('ans', ans);
+  [...b.parentElement.children].forEach(x => x.classList.toggle('on', x === b));
+});
+function showReady(){
+  const answered = Object.keys(ans).length;
+  const res = $('#readyRes'); res.style.display = 'block';
+  if(answered < QS.length){ res.innerHTML = `<b>Please answer all ${QS.length} questions</b> (${answered} done).`; res.scrollIntoView({behavior:'smooth'}); return; }
+  const dims = {}; let total = 0;
+  QS.forEach((q,i) => { const v = +ans[i]; total += v; (dims[q[0]] = dims[q[0]] || {s:0,m:0,tips:[]}); dims[q[0]].s += v; dims[q[0]].m += 2; if(v < 2) dims[q[0]].tips.push({v, t:q[2]}); });
+  const lvl = total <= 8 ? ['Foundation first','Fix the basics before scaling agents. Start with assist-mode pilots on low-risk work.','var(--red)']
+    : total <= 16 ? ['Pilot-ready','You can run supervised agents on well-tested areas. Close your weakest dimension below as you go.','var(--gold)']
+    : ['Scale-ready','Your foundations support supervised autonomy across stages. Focus on metrics and governance to scale safely.','var(--green)'];
+  const sorted = Object.entries(dims).sort((a,b) => a[1].s/a[1].m - b[1].s/b[1].m);
+  const focus = sorted.slice(0,2).flatMap(([n,d]) => d.tips.sort((a,b)=>a.v-b.v).slice(0,1).map(t => `<li><b>${n}:</b> ${t.t}</li>`));
+  res.innerHTML = `<div class="dim">Your level</div><div class="big" style="color:${lvl[2]}">${lvl[0]} · ${total}/24</div><p>${lvl[1]}</p>`
+    + sorted.slice().reverse().map(([n,d]) => `<div class="barlbl"><span>${n}</span><span>${d.s}/${d.m}</span></div><div class="bar"><i style="width:${d.s/d.m*100}%;background:${d.s/d.m>=.75?'var(--green)':d.s/d.m>=.5?'var(--gold)':'var(--red)'}"></i></div>`).join('')
+    + (focus.length ? `<b style="color:var(--champ)">Invest here first</b><ul style="margin:6px 0 0;padding-left:18px">${focus.join('')}</ul>` : '<p>Every dimension is strong. Go to the Playbook and start the 90-day plan.</p>');
+  res.scrollIntoView({behavior:'smooth'});
+}
+renderQs();
+
+/* ---------- PLAYBOOK ---------- */
+let gd = store.get('guards', {});
+function renderGuards(){
+  $('#guardList').innerHTML = GUARDS.map((g,i) => `<label class="chk" style="text-transform:none;font:14px var(--sans);color:var(--text);margin:0"><input type="checkbox" data-i="${i}" ${gd[i]?'checked':''}><span>${g}</span></label>`).join('');
+  $('#gcount').textContent = Object.values(gd).filter(Boolean).length + '/' + GUARDS.length;
+}
+$('#guardList').addEventListener('change', e => { gd[e.target.dataset.i] = e.target.checked; store.set('guards', gd); renderGuards(); });
+renderGuards();
+
+/* ---------- SETTINGS / INSTALL / SW ---------- */
+$('#setBtn').onclick = () => { $('#keyInp').value = store.get('key', ''); $('#keyDlg').showModal(); };
+$('#keySave').onclick = () => { store.set('key', $('#keyInp').value.trim()); $('#keyDlg').close(); };
+$('#keyClear').onclick = () => { store.set('key', ''); $('#keyInp').value = ''; };
+$('#keyClose').onclick = () => $('#keyDlg').close();
+let dp = null;
+addEventListener('beforeinstallprompt', e => { e.preventDefault(); dp = e; $('#installBtn').hidden = false; });
+$('#installBtn').onclick = async () => { if(!dp) return; dp.prompt(); await dp.userChoice; dp = null; $('#installBtn').hidden = true; };
+addEventListener('appinstalled', () => $('#installBtn').hidden = true);
+if('serviceWorker' in navigator && location.protocol.startsWith('http')){
+  addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
+</script>
+</body>
+</html>
