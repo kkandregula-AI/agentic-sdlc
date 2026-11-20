@@ -238,7 +238,15 @@ ol.how{margin:8px 0;padding-left:20px}ol.how li{margin-bottom:7px;font-size:14px
   </div>
   <div class="card"><b style="color:var(--champ)">Sprint roll-up</b><div id="pjSprints" style="margin-top:6px"></div></div>
   <details><summary>Backlog (<span id="pjCount"></span> items)</summary><div id="pjBacklog" style="margin-top:8px"></div></details>
-  <div class="row"><button class="pri" id="pjCopy">Copy project plan</button></div>
+  <div class="card">
+    <b style="color:var(--champ)">Export the project plan</b>
+    <p class="note" style="margin-top:6px">The schedule comes from the simulation above. Task content (summaries, acceptance criteria, risks) comes from a template, or from Claude when you generate it with your key.</p>
+    <label>Project start date</label><input type="date" id="pjStart">
+    <div class="row" style="margin-top:12px"><button class="pri" id="pjDetGen">Generate details with Claude</button><span class="tag sim" id="pjDetTag">TEMPLATE</span></div>
+    <p class="note" id="pjDetNote">Optional. Needs your key under ⚙ Key.</p>
+    <div class="row" style="margin-top:10px"><button class="pri" id="pjXlsx">⬇ Excel (.xlsx)</button><button class="pri" id="pjMsp">⬇ MS Project (.xml)</button><button class="sec" id="pjCopy">Copy plan text</button></div>
+    <p class="note"><b>Excel:</b> 5 sheets (summary, WBS schedule, backlog with acceptance criteria, agents and gates, risks). Opens in Excel, Google Sheets and Numbers.<br><b>MS Project:</b> the .mpp format is a closed binary that a browser app cannot write. This .xml is Microsoft Project's own exchange format: in Project use File → Open, then File → Save As → .mpp. It also opens in ProjectLibre and GanttProject.</p>
+  </div>
 </section>
 
 <!-- BRIEF -->
@@ -325,7 +333,7 @@ ol.how{margin:8px 0;padding-left:20px}ol.how li{margin-bottom:7px;font-size:14px
   </details>
 </section>
 
-<footer><div style="color:var(--gold);margin-bottom:4px">Version 4 · full simulated artifacts</div>Designed &amp; Architected by Krishnamurthy Kandregula · Made by Claude</footer>
+<footer><div style="color:var(--gold);margin-bottom:4px">Version 5 · plan export (Excel, MS Project)</div>Designed &amp; Architected by Krishnamurthy Kandregula · Made by Claude</footer>
 </main>
 
 <nav id="nav">
@@ -1103,7 +1111,7 @@ function runProject(c){
         const start = Math.max(e.t + c.lat, revFree[r]);
         const rv = Math.max(5, Math.round(c.revMin * it.size / 3 * (e.retry ? 0.5 : 1)));
         revFree[r] = start + rv;
-        it.segs.push({a:e.t, b:start, t:'wait', s:s.id}); it.segs.push({a:start, b:start + rv, t:'review', s:s.id});
+        it.segs.push({a:e.t, b:start, t:'wait', s:s.id}); it.segs.push({a:start, b:start + rv, t:'review', s:s.id, rv:r});
         waitMins += start - e.t; reviewMins += rv; gates++;
         push(start + rv, 'gateDone', it, e.k, e.retry);
       } else advance(it, e.k, e.t);
@@ -1151,7 +1159,7 @@ function renderProject(){
   sel.innerHTML = '<option value="">— none —</option>' + r.items.map(it => `<option value="${esc(it.id)}">${esc(it.id)} · ${esc(it.title)}</option>`).join('');
   sel.value = [...sel.options].some(o => o.value === cur) ? cur : '';
   pjLast = {r, manDays, agDays, pct, util, verdict, manH};
-  const keep = {...pj}; store.set('pj', keep);
+  const keep = {...pj}; store.set('pj', keep); if(typeof updDetTag === 'function' && typeof pjDet !== 'undefined') updDetTag();
 }
 function initProjectControls(){
   $('#pjPreset').innerHTML = Object.entries(PRESETS).map(([k, p]) => `<option value="${k}">${p.name}</option>`).join('');
@@ -1211,8 +1219,205 @@ Assumptions: agent time x${pj.agentX}, reviewer pickup ${pj.lat}h, review ${pj.r
 
 Generated with Agentic SDLC Lab · Designed & Architected by Krishnamurthy Kandregula · Made by Claude`;
   try{ await navigator.clipboard.writeText(txt); $('#pjCopy').textContent = 'Copied ✓'; }catch(e){ $('#pjCopy').textContent = 'Copy blocked'; }
-  setTimeout(() => $('#pjCopy').textContent = 'Copy project plan', 1500);
+  setTimeout(() => $('#pjCopy').textContent = 'Copy plan text', 1500);
 };
+/* ---------- PLAN EXPORT (XLSX + MS Project XML) ---------- */
+const p2 = n => String(n).padStart(2, '0');
+const xs = s => esc(String(s)).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
+function parseDay(s){
+  const a = String(s || '').split('-').map(Number);
+  const d = a.length === 3 && a.every(n => !isNaN(n)) ? new Date(a[0], a[1] - 1, a[2]) : new Date();
+  d.setHours(0, 0, 0, 0); while(d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1); return d;
+}
+function defaultStart(){ const d = new Date(); d.setHours(0, 0, 0, 0); while(d.getDay() !== 1) d.setDate(d.getDate() + 1); return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`; }
+function atWork(start, mins, isEnd){
+  let day = Math.floor(mins / 480), rem = mins % 480;
+  if(isEnd && mins > 0 && rem === 0){ day--; rem = 480; }
+  const x = new Date(start); let n = day;
+  while(n > 0){ x.setDate(x.getDate() + 1); if(x.getDay() !== 0 && x.getDay() !== 6) n--; }
+  x.setHours(9, 0, 0, 0); return new Date(x.getTime() + rem * 60000);
+}
+const isoL = d => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}T${p2(d.getHours())}:${p2(d.getMinutes())}:00`;
+const xlSerial = d => (Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes()) - Date.UTC(1899, 11, 30)) / 86400000;
+
+let pjDet = store.get('pjDet', null);
+const pjSig = () => pj.items.map(i => i.id + ':' + i.title).join('|');
+const activeDet = () => (pjDet && pjDet.sig === pjSig()) ? pjDet : null;
+function itemDet(it){
+  const d = activeDet(), c = d && d.items[it.id];
+  if(c && c.acceptance.length) return c;
+  return {summary:`Deliver "${it.title}" end to end (sprint ${it.sprint}, size ${it.size}/5).`,
+    acceptance:['Works end to end as described in the spec', 'Automated tests pass in CI', 'No open high or critical security findings', 'Approved at every required human gate', it.high ? 'High-risk area: security owner signs off' : 'Reviewed by at least one engineer'],
+    risks: it.high ? ['High-risk area (payments, identity or personal data)'] : []};
+}
+function projDet(){
+  const t = {assumptions:[`Agent operating model: ${pj.auto} autonomy, ${pj.wip} items in parallel, ${pj.rev} reviewers`, `Reviewer pickup delay ${pj.lat}h; review effort ${pj.revMin} min per size-3 item`, 'Working time is 8-hour days, Monday to Friday', 'The schedule is a simulation, not a commitment'],
+    risks:['Review capacity may become the bottleneck', 'Dependencies between items limit parallel work', 'Agent output quality varies; expect rework at gates']};
+  const d = activeDet(), p = d && d.project; if(!p) return t;
+  return {assumptions:p.assumptions.length ? p.assumptions : t.assumptions, risks:p.risks.length ? p.risks : t.risks};
+}
+function updDetTag(){ const real = !!activeDet(), t = $('#pjDetTag'); t.textContent = real ? 'REAL · CLAUDE API' : 'TEMPLATE'; t.className = 'tag ' + (real ? 'real' : 'sim'); }
+
+function buildPlan(){
+  const r = pjLast.r, start = parseDay(pj.start || defaultStart());
+  const rows = [], lastUid = {}; let uid = 0;
+  const mk = o => { o.uid = ++uid; o.preds = o.preds || []; o.predItems = o.predItems || []; rows.push(o); return o; };
+  const total = Math.round(r.makespan * (1 + pj.buf / 100));
+  const sprints = [...new Set(r.items.map(i => i.sprint))].sort((a, b) => a - b);
+  sprints.forEach((sp, si) => {
+    const its = r.items.filter(i => i.sprint === sp);
+    mk({wbs:String(si + 1), level:1, name:`Sprint ${sp}`, type:'Sprint', summary:true, s:Math.min(...its.map(i => i.segs[0].a)), e:Math.max(...its.map(i => i.finish)), res:'', notes:`${its.length} work items`});
+    its.forEach((it, ii) => {
+      const d = itemDet(it);
+      mk({wbs:`${si + 1}.${ii + 1}`, level:2, name:`${it.id} · ${it.title}`, type:'Work item', summary:true, s:it.segs[0].a, e:it.finish, res:'', risk:it.high ? 'High' : '',
+        notes:`${d.summary}\nACCEPTANCE CRITERIA\n` + d.acceptance.map((a, k) => `${k + 1}. ${a}`).join('\n') + (d.risks.length ? '\nRISKS\n' + d.risks.map(x => '- ' + x).join('\n') : '')});
+      let prev = null, k = 0; const seen = {};
+      it.segs.forEach(g => {
+        if(g.t === 'wait') return;
+        const s = STAGES.find(x => x.id === g.s); k++; let row;
+        if(g.t === 'agent'){
+          seen[g.s] = (seen[g.s] || 0) + 1;
+          row = mk({wbs:`${si + 1}.${ii + 1}.${k}`, level:3, name:`${s.name}: ${s.agent}` + (seen[g.s] > 1 ? ' (rework)' : ''), type:'Agent work', summary:false, s:g.a, e:g.b, res:s.agent, notes:`Guardrail: ${s.guard}\nOutput: ${s.output}`});
+        } else row = mk({wbs:`${si + 1}.${ii + 1}.${k}`, level:3, name:`${s.name}: human review`, type:'Human review', summary:false, s:g.a, e:g.b, res:`Reviewer ${(g.rv || 0) + 1}`, notes:`Gate: ${s.gate}`});
+        if(prev) row.preds.push(prev); else row.predItems = it.deps;
+        prev = row.uid;
+      });
+      lastUid[it.id] = prev;
+    });
+  });
+  if(pj.buf > 0){
+    const li = r.items.reduce((a, b) => b.finish > a.finish ? b : a);
+    mk({wbs:String(sprints.length + 1), level:1, name:`Integration & contingency buffer (${pj.buf}%)`, type:'Buffer', summary:false, s:r.makespan, e:total, res:'', preds:[lastUid[li.id]], notes:'Allowance for integration, environment issues and rework outside the simulated gates.'});
+  }
+  rows.forEach(w => w.predItems.forEach(d => { if(lastUid[d]) w.preds.push(lastUid[d]); }));
+  const root = {uid:0, wbs:'0', level:0, name:pj.name, type:'Project', summary:true, s:0, e:total, res:'', preds:[], predItems:[], notes:'Agentic SDLC plan generated from a simulation.'};
+  return {rows:[root, ...rows], start, total};
+}
+
+/* --- minimal ZIP writer (stored, no compression) --- */
+const CRC_T = (() => { const t = []; for(let n = 0; n < 256; n++){ let c = n; for(let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(b){ let c = 0xFFFFFFFF; for(let i = 0; i < b.length; i++) c = CRC_T[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+function makeZip(files, mime){
+  const enc = new TextEncoder(), parts = [], central = []; let off = 0;
+  files.forEach(f => {
+    const name = enc.encode(f.name), data = enc.encode(f.data), crc = crc32(data);
+    const lh = new DataView(new ArrayBuffer(30));
+    lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0x0800, true); lh.setUint16(8, 0, true); lh.setUint16(10, 0, true); lh.setUint16(12, 0x21, true);
+    lh.setUint32(14, crc, true); lh.setUint32(18, data.length, true); lh.setUint32(22, data.length, true); lh.setUint16(26, name.length, true); lh.setUint16(28, 0, true);
+    parts.push(new Uint8Array(lh.buffer), name, data);
+    const ch = new DataView(new ArrayBuffer(46));
+    ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(8, 0x0800, true); ch.setUint16(10, 0, true); ch.setUint16(12, 0, true); ch.setUint16(14, 0x21, true);
+    ch.setUint32(16, crc, true); ch.setUint32(20, data.length, true); ch.setUint32(24, data.length, true); ch.setUint16(28, name.length, true);
+    ch.setUint16(30, 0, true); ch.setUint16(32, 0, true); ch.setUint16(34, 0, true); ch.setUint16(36, 0, true); ch.setUint32(38, 0, true); ch.setUint32(42, off, true);
+    central.push(new Uint8Array(ch.buffer), name); off += 30 + name.length + data.length;
+  });
+  const csize = central.reduce((a, x) => a + x.length, 0), end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0, 0x06054b50, true); end.setUint16(8, files.length, true); end.setUint16(10, files.length, true); end.setUint32(12, csize, true); end.setUint32(16, off, true);
+  return new Blob([...parts, ...central, new Uint8Array(end.buffer)], {type:mime});
+}
+const colName = n => { let s = ''; n++; while(n > 0){ const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; };
+function sheetXml(rows, widths){
+  const body = rows.map((row, ri) => `<row r="${ri + 1}">` + row.map((v, ci) => {
+    const ref = colName(ci) + (ri + 1);
+    if(v === null || v === undefined || v === '') return '';
+    if(v instanceof Date) return `<c r="${ref}" s="2"><v>${xlSerial(v)}</v></c>`;
+    if(typeof v === 'number') return `<c r="${ref}"><v>${v}</v></c>`;
+    return `<c r="${ref}" t="inlineStr" s="${ri === 0 ? 1 : 3}"><is><t xml:space="preserve">${xs(v)}</t></is></c>`;
+  }).join('') + '</row>').join('');
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>${widths.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join('')}</cols><sheetData>${body}</sheetData></worksheet>`;
+}
+function makeXlsx(sheets){
+  const NS = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main', R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  const files = [
+    {name:'[Content_Types].xml', data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>${sheets.map((s, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`},
+    {name:'_rels/.rels', data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${R}/officeDocument" Target="xl/workbook.xml"/></Relationships>`},
+    {name:'xl/workbook.xml', data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="${NS}" xmlns:r="${R}"><sheets>${sheets.map((s, i) => `<sheet name="${xs(s.name)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('')}</sheets></workbook>`},
+    {name:'xl/_rels/workbook.xml.rels', data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="${R}/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join('')}<Relationship Id="rId${sheets.length + 1}" Type="${R}/styles" Target="styles.xml"/></Relationships>`},
+    {name:'xl/styles.xml', data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="${NS}"><numFmts count="1"><numFmt numFmtId="164" formatCode="yyyy-mm-dd hh:mm"/></numFmts><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF3A2F12"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="4"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyAlignment="1"><alignment vertical="top"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`}
+  ];
+  sheets.forEach((s, i) => files.push({name:`xl/worksheets/sheet${i + 1}.xml`, data:sheetXml(s.rows, s.widths)}));
+  return makeZip(files, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+}
+function exportXlsx(){
+  const P = buildPlan(), L = pjLast, wbsOf = Object.fromEntries(P.rows.map(r => [r.uid, r.wbs]));
+  const D = (m, end) => atWork(P.start, m, end), h = m => Math.round(m / 6) / 10;
+  const pd = projDet(), real = !!activeDet();
+  const summary = [['Field', 'Value'], ['Project', pj.name], ['Planned start', D(0, false)], ['Planned finish (incl. buffer)', D(P.total, true)],
+    ['Autonomy level', pj.auto], ['Human gates', AUTO[pj.auto].gates.map(g => STAGES.find(s => s.id === g).name).join(', ') + ' (security always gated for high-risk items)'],
+    ['Parallel work items', pj.wip], ['Human reviewers', pj.rev], ['Rework rate (%)', pj.rew],
+    ['Manual estimate (working days)', Math.round(L.manDays * 10) / 10], ['With agents (working days)', Math.round(L.agDays * 10) / 10], ['Faster than manual (%)', L.pct],
+    ['Reviewer load (%)', Math.round(L.util * 100)], ['Likely bottleneck', L.verdict],
+    ['Schedule source', 'Simulation (illustrative, not a commitment)'], ['Task content source', real ? 'Claude API (real)' : 'Template'],
+    ['Generated', new Date().toLocaleString()], ['Generated by', 'Agentic SDLC Lab · Designed & Architected by Krishnamurthy Kandregula · Made by Claude']];
+  const plan = [['WBS', 'Task', 'Type', 'Resource', 'Start', 'Finish', 'Duration (h)', 'Predecessors', 'Risk', 'Details']].concat(P.rows.map(r =>
+    [r.wbs, '    '.repeat(Math.max(0, r.level - 1)) + r.name, r.type, r.res, D(r.s, false), D(r.e, true), h(r.e - r.s), r.preds.map(u => wbsOf[u]).join(', '), r.risk || '', r.notes || '']));
+  const backlog = [['ID', 'Work item', 'Sprint', 'Size (1-5)', 'High risk', 'Depends on', 'Agent stages', 'Summary', 'Acceptance criteria', 'Risks']].concat(L.r.items.map(it => {
+    const d = itemDet(it);
+    return [it.id, it.title, it.sprint, it.size, it.high ? 'Yes' : 'No', it.deps.join(', '), it.stages.map(i => STAGES[i].name).join(' > '), d.summary, d.acceptance.map((a, k) => `${k + 1}. ${a}`).join('\n'), d.risks.join('\n')];
+  }));
+  const agents = [['Stage', 'Agent', 'What it does', 'Human gate', 'Guardrail', 'Tools', 'Stop and escalate when', 'Output', 'Measure']].concat(STAGES.map(s =>
+    [s.name, s.agent, s.does.join('; '), s.gate, s.guard, s.tools, s.stop, s.output, s.metric]));
+  const ra = [['Type', 'Text']].concat(pd.assumptions.map(t => ['Assumption', t]), pd.risks.map(t => ['Risk', t]));
+  const blob = makeXlsx([
+    {name:'Summary', rows:summary, widths:[30, 80]},
+    {name:'Plan (WBS)', rows:plan, widths:[10, 48, 14, 24, 17, 17, 12, 14, 8, 70]},
+    {name:'Backlog & criteria', rows:backlog, widths:[7, 34, 8, 9, 9, 12, 34, 44, 60, 40]},
+    {name:'Agents & gates', rows:agents, widths:[10, 24, 50, 40, 40, 36, 36, 36, 30]},
+    {name:'Risks & assumptions', rows:ra, widths:[14, 90]}]);
+  saveBlob(blob, 'agentic-sdlc-plan.xlsx');
+}
+function exportMsp(){
+  const P = buildPlan(), D = (m, end) => atWork(P.start, m, end), dur = m => `PT${Math.floor(m / 60)}H${m % 60}M0S`;
+  const resNames = [...new Set(P.rows.map(r => r.res).filter(Boolean))], ruid = Object.fromEntries(resNames.map((n, i) => [n, i + 1]));
+  const wd = (t, w) => `<WeekDay><DayType>${t}</DayType><DayWorking>${w}</DayWorking>${w ? '<WorkingTimes><WorkingTime><FromTime>09:00:00</FromTime><ToTime>17:00:00</ToTime></WorkingTime></WorkingTimes>' : ''}</WeekDay>`;
+  const tasks = P.rows.map(r => {
+    const m = Math.round(r.e - r.s);
+    return `<Task><UID>${r.uid}</UID><ID>${r.uid}</ID><Name>${xs(r.name)}</Name><Type>1</Type><IsNull>0</IsNull><WBS>${xs(r.wbs)}</WBS><OutlineNumber>${xs(r.wbs)}</OutlineNumber><OutlineLevel>${r.level}</OutlineLevel><Priority>500</Priority><Start>${isoL(D(r.s, false))}</Start><Finish>${isoL(D(r.e, true))}</Finish><Duration>${dur(m)}</Duration><DurationFormat>5</DurationFormat><Milestone>0</Milestone><Summary>${r.summary ? 1 : 0}</Summary>${r.summary ? '' : `<ConstraintType>4</ConstraintType><ConstraintDate>${isoL(D(r.s, false))}</ConstraintDate>`}<Notes>${xs(r.notes || '')}</Notes>${r.preds.map(u => `<PredecessorLink><PredecessorUID>${u}</PredecessorUID><Type>1</Type><CrossProject>0</CrossProject><LinkLag>0</LinkLag><LagFormat>7</LagFormat></PredecessorLink>`).join('')}</Task>`;
+  }).join('');
+  const res = resNames.map(n => `<Resource><UID>${ruid[n]}</UID><ID>${ruid[n]}</ID><Name>${xs(n)}</Name><Type>1</Type><IsNull>0</IsNull><Initials>${xs(n.split(/\s+/).map(w => w[0]).join('').slice(0, 3))}</Initials><Group>${n.startsWith('Reviewer') ? 'Human reviewers' : 'AI agents'}</Group><MaxUnits>1</MaxUnits></Resource>`).join('');
+  let au = 0; const asg = P.rows.filter(r => r.res).map(r => `<Assignment><UID>${++au}</UID><TaskUID>${r.uid}</TaskUID><ResourceUID>${ruid[r.res]}</ResourceUID><Units>1</Units></Assignment>`).join('');
+  const xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Project xmlns="http://schemas.microsoft.com/project"><SaveVersion>14</SaveVersion><Name>${xs(pj.name.slice(0, 60))}</Name><Title>${xs(pj.name)}</Title><CreationDate>${isoL(new Date())}</CreationDate><ScheduleFromStart>1</ScheduleFromStart><StartDate>${isoL(D(0, false))}</StartDate><FinishDate>${isoL(D(P.total, true))}</FinishDate><CalendarUID>1</CalendarUID><DefaultStartTime>09:00:00</DefaultStartTime><DefaultFinishTime>17:00:00</DefaultFinishTime><MinutesPerDay>480</MinutesPerDay><MinutesPerWeek>2400</MinutesPerWeek><DaysPerMonth>20</DaysPerMonth><Calendars><Calendar><UID>1</UID><Name>Standard</Name><IsBaseCalendar>1</IsBaseCalendar><WeekDays>${wd(1, 0)}${wd(2, 1)}${wd(3, 1)}${wd(4, 1)}${wd(5, 1)}${wd(6, 1)}${wd(7, 0)}</WeekDays></Calendar></Calendars><Tasks>${tasks}</Tasks><Resources>${res}</Resources><Assignments>${asg}</Assignments></Project>`;
+  saveBlob(new Blob([xml], {type:'application/xml'}), 'agentic-sdlc-plan.xml');
+}
+async function saveBlob(blob, name){
+  const file = new File([blob], name, {type:blob.type});
+  if(/iPhone|iPad|iPod/.test(navigator.userAgent) && navigator.canShare && navigator.canShare({files:[file]})){
+    try{ await navigator.share({files:[file], title:name}); return; }catch(e){ if(e && e.name === 'AbortError') return; }
+  }
+  const u = URL.createObjectURL(blob), a = document.createElement('a'); a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 2000);
+}
+if(!pj.start) pj.start = defaultStart();
+$('#pjStart').value = pj.start;
+$('#pjStart').addEventListener('change', e => { pj.start = e.target.value || defaultStart(); store.set('pj', {...pj}); });
+$('#pjXlsx').onclick = () => { try{ exportXlsx(); }catch(e){ $('#pjDetNote').textContent = 'Export failed: ' + e.message; } };
+$('#pjMsp').onclick = () => { try{ exportMsp(); }catch(e){ $('#pjDetNote').textContent = 'Export failed: ' + e.message; } };
+$('#pjDetGen').onclick = async () => {
+  const key = store.get('key', ''), note = $('#pjDetNote');
+  if(!key){ note.textContent = 'Add your Anthropic key under ⚙ Key first, then try again.'; $('#setBtn').click(); return; }
+  $('#pjDetGen').disabled = true; note.textContent = 'Asking Claude for summaries, acceptance criteria and risks…';
+  try{
+    const list = pj.items.map(i => `${i.id}: ${i.title} (sprint ${i.sprint}, size ${i.size}/5${i.high ? ', high risk' : ''}${i.deps.length ? ', depends on ' + i.deps.join(', ') : ''})`).join('\n');
+    const res = await fetch('https://api.anthropic.com/v1/messages', {method:'POST',
+      headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-sonnet-5-5', max_tokens:3500,
+        system:'You are an experienced delivery lead. Return ONLY valid JSON, no prose and no code fences, shaped as {"items":[{"id":"...","summary":"one sentence","acceptance":["3 to 5 specific, testable criteria"],"risks":["0 to 2 short risks"]}],"project":{"assumptions":["3 to 5"],"risks":["3 to 5"]}}. Use the exact item ids provided and cover every item.',
+        messages:[{role:'user', content:`Project: ${pj.name}\n\nWork items:\n${list}`}]})});
+    const data = await res.json();
+    if(!res.ok) throw new Error((data.error && data.error.message) || ('HTTP ' + res.status));
+    const t = (data.content || []).map(c => c.text || '').join(''), a = t.indexOf('{'), b = t.lastIndexOf('}');
+    if(a < 0 || b < a) throw new Error('No JSON in reply');
+    const j = JSON.parse(t.slice(a, b + 1)), ids = new Set(pj.items.map(i => i.id)), arr = (v, n, m) => (Array.isArray(v) ? v : []).slice(0, n).map(x => String(x).slice(0, m)), items = {};
+    (j.items || []).forEach(o => { if(o && ids.has(o.id)) items[o.id] = {summary:String(o.summary || '').slice(0, 240), acceptance:arr(o.acceptance, 6, 200), risks:arr(o.risks, 3, 200)}; });
+    if(!Object.keys(items).length) throw new Error('No usable items in the reply');
+    const pr = j.project || {};
+    pjDet = {sig:pjSig(), items, project:{assumptions:arr(pr.assumptions, 6, 200), risks:arr(pr.risks, 6, 200)}}; store.set('pjDet', pjDet);
+    note.textContent = `Claude wrote details for ${Object.keys(items).length} of ${pj.items.length} items. Exports now use them.`;
+  }catch(err){ note.textContent = 'Could not generate: ' + err.message; }
+  $('#pjDetGen').disabled = false; updDetTag();
+};
+updDetTag();
+
 function refreshKeyUi(){
   const has = !!store.get('key', '');
   $('#setBtn').textContent = has ? '⚙ Key ✓' : '⚙ Key';
