@@ -114,7 +114,7 @@ dialog::backdrop{background:rgba(0,0,0,.7)}
 ol.how{margin:8px 0;padding-left:20px}ol.how li{margin-bottom:7px;font-size:14px}
 .bl{display:grid;grid-template-columns:34px 1fr;gap:4px 8px;font-size:13px;padding:7px 0;border-bottom:1px solid var(--line)}.bl:last-child{border:0}.bl code{font:500 11px var(--mono);color:var(--gold)}.bl small{color:var(--mute);display:block}
 .asg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.gatebox pre.out{max-height:260px;overflow:auto}.gatebox #gateIn{max-height:130px}.gatebox label{color:var(--gold)}#simArtifacts details{padding:8px 12px;margin-bottom:8px}
+.gatebox pre.out{max-height:340px;overflow:auto}.gatebox #gateIn{max-height:130px}.gatebox label{color:var(--gold)}#simArtifacts details{padding:8px 12px;margin-bottom:8px}
 @media(max-width:520px){.kv{grid-template-columns:1fr}.kv b{padding-top:6px}.grid2{grid-template-columns:1fr}}
 </style>
 </head>
@@ -325,7 +325,7 @@ ol.how{margin:8px 0;padding-left:20px}ol.how li{margin-bottom:7px;font-size:14px
   </details>
 </section>
 
-<footer><div style="color:var(--gold);margin-bottom:4px">Version 3 · Agent Console + Project tab</div>Designed &amp; Architected by Krishnamurthy Kandregula · Made by Claude</footer>
+<footer><div style="color:var(--gold);margin-bottom:4px">Version 4 · full simulated artifacts</div>Designed &amp; Architected by Krishnamurthy Kandregula · Made by Claude</footer>
 </main>
 
 <nav id="nav">
@@ -425,6 +425,260 @@ const FEATURES = {
   refactor:['Consolidated 3 duplicate query builders','Coverage on search module raised from 61% to 84%'],
   security:['Dependency scan clean','Cache-key injection test added; no findings']  ,
   ship:['Canary 10%: p95 down 38%, error rate flat','Release notes drafted; flag ramp plan proposed']}}
+};
+const SIM_ART = {
+sso:{
+plan:`SPEC: SSO login via OIDC (ticket SEC-214)
+
+Goal: let employees sign in with the company identity provider instead of a password.
+
+ACCEPTANCE CRITERIA
+1. A "Sign in with SSO" button appears on the login page.
+2. Clicking it redirects to the IdP with state and nonce; users return to the page they came from.
+3. A valid ID token creates or links a user by verified email. No duplicate accounts.
+4. Invalid, expired or replayed tokens show a generic error and are logged.
+5. Sessions expire after 8 hours; sign-out also ends the IdP session.
+6. Password login stays available for break-glass admin accounts only.
+7. Login success rate and latency appear on the existing auth dashboard.
+
+TASKS (estimate)
+T1 Provider config + secrets (2h)
+T2 /auth/oidc/callback route (4h, needs T1)
+T3 User mapping + linking (3h, needs T2)
+T4 Session + logout (2h, needs T3)
+T5 Tests incl. abuse cases (4h, needs T2)
+T6 Dashboard metrics (1h)
+
+RISKS / ASSUMPTIONS
+- One IdP only (Okta-compatible). Multi-tenant IdPs are out of scope.
+- The IdP guarantees email is unique and verified.`,
+design:`ADR-031: OIDC through the existing auth service
+
+STATUS: Proposed
+CONTEXT: 3 login paths already share the auth service. A separate gateway would duplicate session logic.
+
+OPTIONS
+A. Extend the auth service with an OIDC provider module (recommended)
+B. New SSO gateway in front of the app
+C. Buy a hosted auth product
+
+DECISION: A. Smallest change; reuses sessions, audit logging and rate limits.
+TRADE-OFF: the auth service becomes more critical. Mitigation: feature flag and canary.
+
+API CONTRACT
+GET  /auth/oidc/start?return_to=/path   > 302 to IdP (state, nonce, PKCE)
+GET  /auth/oidc/callback?code&state     > 302 to return_to + session cookie
+POST /auth/logout                       > ends session, optional IdP logout
+
+THREAT NOTES
+Validate state and nonce, use PKCE, strict redirect-URI allowlist, cookies HttpOnly/Secure/SameSite=Lax, only same-site return_to values.`,
+build:`PR #482: Add OIDC login (branch feat/oidc-login)
+
+CHANGES (4 files, +186 / -12)
++ auth/oidc_provider.py   discovery, code exchange, ID-token validation
++ auth/routes_oidc.py     /start and /callback handlers
+~ auth/sessions.py        accepts provider="oidc", 8h expiry
+~ ui/login.html           "Sign in with SSO" button (behind flag)
+
+KEY SNIPPET
+claims = validate_id_token(token, nonce=session.nonce, aud=CLIENT_ID)
+user = users.link_or_create(email=claims.email, verified=claims.email_verified)
+
+TESTS ADDED (12)
+happy path, bad state, replayed nonce, expired token, unverified email, duplicate-email link, open-redirect attempt via return_to, logout.
+
+CI: failed once (redirect URI mismatch in test config), fixed, now green.
+NOT VERIFIED: behavior against the real IdP tenant.`,
+refactor:`REFACTOR PR #483: share session creation
+
+BEFORE: 3 login paths each built sessions with their own copy of cookie and expiry code.
+AFTER: one create_session(user, provider) helper used by password, magic-link and OIDC login.
+
+SAFETY
+- Characterization tests written first for all 3 paths (9 tests); they pass before and after.
+- No behavior change. Net -64 lines.
+- Kept separate from the feature PR so a reviewer can check it on its own.`,
+security:`SECURITY REVIEW: PR #482 and #483
+
+SCANS: SAST clean · dependency scan clean · secret scan clean
+
+FINDINGS
+MEDIUM  M-1  Token expiry (exp) not checked when the IdP omits "nbf"
+        Fix PR #484 opened: reject tokens without exp; test added.
+LOW     L-1  Verbose error on bad state reveals which check failed
+        Fix: generic message to the user, details only in the server log.
+
+ABUSE-CASE TESTS GENERATED (6)
+state tampering, nonce replay, open redirect via return_to, mixed-case email takeover, token swap between users, logout CSRF.
+
+DECISION NEEDED: approve the M-1 fix before merge. No exceptions requested.`,
+ship:`RELEASE NOTES v2.14
+
+NEW       Single sign-on via OIDC (flag: oidc_login, off by default)
+IMPROVED  Shared session handling across login methods
+SECURITY  Stricter token expiry validation
+
+ROLLOUT PLAN
+1. Enable for staff accounts only (5%) for 24h
+2. Watch login errors, p95 latency, support tickets
+3. Ramp 25% > 100% if error rate stays under 0.5%
+
+CANARY REPORT (5%): login errors flat at 0.3%, p95 +4ms (within SLO)
+ROLLBACK: disable flag oidc_login. No data migration to undo.`
+},
+pay:{
+plan:`SPEC: Migrate payments API from v1 to v2
+
+Goal: move all card payments and refunds to provider API v2 before the v1 sunset, without double-charging.
+
+ACCEPTANCE CRITERIA
+1. All 23 v1 call sites use the v2 client; none call v1 after cutover.
+2. Every charge and refund carries an idempotency key; retries never double-charge.
+3. Refund webhooks follow v2 event semantics, including partial refunds.
+4. For 2 weeks a dual-write adapter compares v1 and v2 results and alerts on any mismatch.
+5. Payment success rate drops by no more than 0.2% during rollout.
+6. Card data never appears in logs, traces or error messages.
+
+TASKS
+T1 Adapter layer + v2 client (6h)
+T2 Charge + refund migration (8h, needs T1)
+T3 Webhook handlers (4h)
+T4 Reconciliation job (4h, needs T2)
+T5 Contract tests (5h)
+T6 Cutover runbook (2h)
+
+RISKS
+- HIGH: refund webhook semantics differ in v2. Needs finance sign-off.
+- Assumes sandbox accounts exist for both versions.`,
+design:`ADR-044: Adapter with dual-write for 2 weeks
+
+OPTIONS
+A. Big-bang switch to v2 (rejected: no rollback path)
+B. Adapter interface; v1 stays primary, v2 shadow-writes, then flip (recommended)
+C. Per-customer gradual migration (rejected: too much state)
+
+DECISION: B. Money movement gets a shadow period and a one-flag rollback.
+
+CONTRACT DIFF (v1 > v2)
+- amount: integer cents > {value, currency}
+- charge id format changed; store both ids
+- refund: single call > refund object with status events
+
+IDEMPOTENCY: key = order_id + attempt_number, stored 24h.
+THREAT NOTES: API keys restricted to the payments service; no card data crosses the adapter; webhook signature verification is mandatory.`,
+build:`6 PRs: adapter and v2 migration (branch payments/v2-migration)
+
+PR 1  Adapter interface + v1 implementation (no behavior change)
+PR 2  v2 client with idempotency keys
+PR 3  Dual-write mode behind flag payments_shadow_v2
+PR 4  Charge path moved to the adapter
+PR 5  Refund path + webhook handlers
+PR 6  Reconciliation job and mismatch alerts
+
+KEY SNIPPET
+key = f"{order.id}:{attempt}"
+result = adapter.charge(order, idempotency_key=key)
+
+TESTS: 38 new (contract tests against sandbox, retry and duplicate cases, partial refunds).
+2 flaky tests quarantined with tickets (not hidden).
+NOT VERIFIED: live-card behavior; only the sandbox was exercised.`,
+refactor:`REFACTOR PRs: remove dead v1 retry code, upgrade SDK
+
+- Deleted 410 lines of custom v1 retry logic, replaced by idempotency keys.
+- Upgraded the payments SDK across 9 services in 9 small PRs.
+- Added characterization tests around money rounding before touching it.
+
+SAFETY: all tests green before and after; never mixed with feature changes; each PR under 150 lines.`,
+security:`SECURITY REVIEW: payments v2 migration
+
+SCANS: SAST 1 finding · dependency scan clean · secret scan 1 finding
+
+FINDINGS
+HIGH    H-1  API key written to debug log in client.py:88
+        MERGE BLOCKED. Fix PR opened: key redacted, log test added.
+        Action for humans: rotate the exposed key (runbook SEC-7).
+MEDIUM  M-1  Webhook handler accepts unsigned events when test-mode flag is set
+        Fix: signature check is always on.
+
+ABUSE-CASE TESTS (8)
+replayed webhook, forged refund event, duplicate charge on retry, negative amount, currency mismatch, partial-refund overflow, key leakage in errors, race on double submit.
+
+DECISION NEEDED: security owner must approve the H-1 fix and confirm key rotation.`,
+ship:`RELEASE NOTES (internal + customer changelog)
+
+INTERNAL: payments now run through the v2 adapter; shadow mode on for 14 days.
+CUSTOMER: no visible change; refunds may show new status labels.
+
+CANARY PLAN: 1% of orders > 5% > 25% > 100%, hold 24h at each step.
+STOP IF: success rate drops by more than 0.2% or any v1/v2 mismatch is unexplained.
+CANARY REPORT (1%): success rate stable, 0 mismatches in 1,214 payments.
+ROLLBACK: set payments_primary=v1 (one flag, no migration).`
+},
+perf:{
+plan:`SPEC: Cut p95 latency on product search
+
+Goal: bring search p95 from 480ms to under 300ms without changing results.
+
+ACCEPTANCE CRITERIA
+1. p95 under 300ms and p99 under 600ms at current peak load, measured in staging.
+2. Results are identical to today for a fixed set of 200 reference queries.
+3. Cached entries expire within 60s of a product change.
+4. Database CPU at peak does not increase.
+5. A dashboard panel tracks search p50 / p95 / p99.
+
+FINDINGS FROM TRACES: 62% of time is in N+1 product lookups; 18% in serialization.
+
+TASKS
+T1 Batch loader (4h) · T2 Short-TTL cache (3h) · T3 Benchmarks + load test (3h) · T4 Dashboard (1h)
+
+RISKS: stale results if cache invalidation is missed.`,
+design:`ADR-052: Batch lookup + short-TTL cache
+
+OPTIONS
+A. Batch the lookups (recommended, simple)
+B. Add a denormalized search index (bigger change, revisit later)
+C. Scale up the database (hides the problem, costs more)
+
+DECISION: A plus a 30s cache keyed by product id. Revisit B if p95 regresses.
+INVALIDATION: a product-update event deletes the cache key; the TTL is the safety net.
+CONTRACT: no API change; the search response shape stays identical.`,
+build:`PR #611: batch product lookups in search
+
+CHANGES (3 files, +94 / -31)
+~ search/service.py       one batched query instead of N lookups
++ search/cache.py         30s TTL cache with event invalidation
++ bench/search_bench.py   reproducible load test
+
+KEY SNIPPET
+products = repo.get_many(ids)   # was: [repo.get(i) for i in ids]
+
+RESULT (staging load test): p95 480ms > 270ms · p99 910ms > 520ms
+TESTS (9): result parity on 200 reference queries, cache expiry, invalidation on update.
+NOT VERIFIED: production traffic shape.`,
+refactor:`REFACTOR PR #612: consolidate query builders
+
+- Merged 3 duplicate query-builder functions into one.
+- Search module coverage raised from 61% to 84% (characterization tests added first).
+- No behavior change: the reference-query parity test passes before and after.`,
+security:`SECURITY REVIEW: PR #611 and #612
+
+SCANS: SAST clean · dependency scan clean · secret scan clean
+FINDINGS: none.
+
+ABUSE-CASE TESTS ADDED (3)
+cache-key injection via crafted product id, oversized id lists, cache poisoning through unescaped query text.
+
+NOTE: the cache never stores user-specific data; keys contain product ids only.
+DECISION: no gate needed; informational.`,
+ship:`RELEASE NOTES v2.15
+
+IMPROVED  Faster product search (about 40% lower p95 latency)
+
+ROLLOUT: flag search_batching, 10% > 50% > 100% over 2 days.
+CANARY REPORT (10%): p95 down 38%, error rate flat, DB CPU unchanged.
+STOP IF: p95 worsens or the result-parity alarm fires.
+ROLLBACK: turn the flag off; cache entries expire in 30s.`
+}
 };
 const AUTO = {
  assist:{gates:['plan','design','build','refactor','security','ship'], note:'Human approves every stage. Safest start; slowest because every hand-off waits on review.'},
@@ -535,10 +789,10 @@ APPROVED UPSTREAM ARTIFACTS
 ${upstream.length ? upstream.map(u => `## ${u.name}\n${u.text.slice(0, 1800)}`).join('\n\n') : '(none: you are the first stage)'}
 ${fb ? `\nREVIEWER FEEDBACK TO ADDRESS\n${fb}\n\nYOUR PREVIOUS OUTPUT\n${prevOut.slice(0, 2500)}\n` : ''}`;
 }
-function simOutput(s, f, rev, fb){
-  return `[${s.agent}] ${s.output}\n\n` + f.logs[s.id].map(l => '• ' + l).join('\n')
-    + (rev ? `\n\nRevision ${rev}: addressed reviewer feedback: "${fb}"` : '')
-    + '\n\n(Simulated output: a live agent would write the full artifact here.)';
+function simOutput(s, fk, rev, fb){
+  return SIM_ART[fk][s.id]
+    + (rev ? `\n\n--- REVISION ${rev} ---\nReviewer feedback: "${fb}"\nAgent response: updated the relevant section above and re-checked it against the upstream artifacts.` : '')
+    + '\n\n(Simulated content for learning. A live agent would tailor this to your real task.)';
 }
 async function callAgent(s, userMsg){
   const res = await fetch('https://api.anthropic.com/v1/messages', {method:'POST',
@@ -618,7 +872,7 @@ $('#simRun').onclick = async () => {
         } else {
           if(!rev) for(const line of f.logs[s.id]){ await sleep(500); if(my !== runId) return; addLog('  ' + line, line.startsWith('HIGH') ? 'h' : ''); }
           else { addLog(`  ↺ revision ${rev}: agent revising…`, 'm'); await sleep(700); }
-          out = simOutput(s, f, rev, fb); const m = rev ? Math.round(s.mins / 2) : s.mins; sim.agent += m; sim.elapsed += m;
+          out = simOutput(s, $('#simFeature').value, rev, fb); const m = rev ? Math.round(s.mins / 2) : s.mins; sim.agent += m; sim.elapsed += m;
         }
       }catch(err){
         if(my !== runId) return;
