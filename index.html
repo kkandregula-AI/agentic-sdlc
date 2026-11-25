@@ -96,6 +96,7 @@ summary{cursor:pointer;font-weight:700;color:var(--champ)}
 details ul{margin:8px 0 0;padding-left:18px}details li{margin-bottom:5px}
 .chk{display:flex;gap:10px;align-items:flex-start;padding:7px 0;font-size:14px}
 .chk input{margin-top:4px;accent-color:var(--gold);width:16px;height:16px}
+.tag:empty{display:none}
 .sub{display:flex;gap:6px;margin:0 0 14px;position:sticky;top:0;z-index:20;background:var(--bg,#0a0a0b);padding:6px 0}.sub[hidden]{display:none}
 .sub button{flex:1;padding:10px 6px;font:600 13px var(--sans);background:var(--s2);border:1px solid var(--line);border-radius:10px;color:var(--mute);cursor:pointer}
 .sub button.on{border-color:var(--gold);color:var(--gold);background:#1c1810}
@@ -231,21 +232,22 @@ header h1{font-size:15px}.hbtn{padding:6px 9px}
   <div class="card">
     <b style="color:var(--champ)">How a project manager uses this</b>
     <ol class="how">
-      <li><b>Load or generate a backlog.</b> Pick a sample project, or describe yours and let Claude draft the backlog (needs your API key under ⚙ Key).</li>
+      <li><b>Load or generate a backlog.</b> Option A: pick a sample project (free). Option B: describe your own project and let real Claude draft the backlog (needs your API key under ⚙ Key).</li>
       <li><b>Tune the operating model.</b> Change autonomy, parallel items, reviewers and rework. Watch the timeline to see what really slows delivery.</li>
       <li><b>Generate agent briefs.</b> In <b>Plan → Agent brief</b>, pick a backlog item to prefill a brief for any stage.</li>
       <li><b>Take the plan to your tools.</b> Copy the project plan and run the agents in your own tooling (for example Claude Code with your CI). The gates you chose become your review rules.</li>
     </ol>
     <div class="row"><span class="tag" id="pjKey"></span></div>
-    <p class="note">This app plans and simulates. It does not run agents on your code or connect to your repository.</p>
+    <p class="note">Simulation numbers are adjustable assumptions. Real Claude only drafts text for review: it does not run agents on your code or connect to your repository.</p>
   </div>
   <div class="card">
     <div class="dim" id="pjName"></div>
-    <label>Sample project</label><select id="pjPreset"></select>
-    <details style="margin:12px 0 0;padding:10px 12px"><summary>Or generate a backlog from your own description</summary>
-      <textarea id="pjDesc" style="margin-top:10px" placeholder="e.g. A web platform where freelancers send invoices, clients pay online, and accountants export monthly reports"></textarea>
-      <div class="row" style="margin-top:10px"><button class="pri" id="pjGen">Generate with Claude</button><span class="tag" id="pjMode"></span></div>
-      <p class="note" id="pjGenNote">Needs your Anthropic key (⚙ Key). Without a key, use the sample projects.</p>
+    <label>Option A · Start from a sample project <span class="tag sim">FREE · SIMULATED</span></label><select id="pjPreset"></select>
+    <details open style="margin:12px 0 0;padding:10px 12px"><summary>Option B · Use your own project with real Claude <span class="tag real">API KEY</span></summary>
+      <p class="note" style="margin:10px 0 0">Describe your project in 1 to 3 sentences. Claude drafts a backlog with acceptance criteria that you then run through the simulator, review and export.</p>
+      <textarea id="pjDesc" maxlength="500" style="margin-top:10px" placeholder="Your project, in 1 to 3 sentences. Example: A web platform where freelancers send invoices, clients pay online, and accountants export monthly reports."></textarea>
+      <div class="row" style="margin-top:10px"><button class="pri" id="pjGen">Draft my backlog with Claude</button><span class="tag" id="pjMode"></span></div>
+      <p class="note" id="pjGenNote">Needs your API key (⚙ Key) and the finished Lessons quiz. Makes one short, capped Claude call (max 500 characters in). Always review the drafted items. No key? Use Option A.</p>
     </details>
   </div>
   <div class="card">
@@ -373,7 +375,7 @@ header h1{font-size:15px}.hbtn{padding:6px 9px}
   </details>
 </section>
 
-<footer><div style="color:var(--gold);margin-bottom:4px">Version 10 · Roadmap note, Live expectations note, PM briefing, simple navigation, Learn module, cost limits, PDF/Excel/MS Project</div>Designed &amp; Architected by Krishnamurthy Kandregula · Made by Claude</footer>
+<footer><div style="color:var(--gold);margin-bottom:4px">Version 11 · Clearer API labels, roadmap note, Live expectations note, PM briefing, simple navigation, Learn module, cost limits, PDF/Excel/MS Project</div>Designed &amp; Architected by Krishnamurthy Kandregula · Made by Claude</footer>
 </main>
 
 <nav id="nav">
@@ -1505,7 +1507,7 @@ $('#pjGen').onclick = async () => {
   const d = $('#pjDesc').value.trim().slice(0, 500);
   if(!d){ $('#pjDesc').focus(); return; }
   if(!isUnlocked()){ openLearn(0); return; }
-  if(!store.get('key', '')){ $('#pjGenNote').textContent = 'Add your Anthropic key under ⚙ Key first. Meanwhile, try a sample project above.'; $('#setBtn').click(); return; }
+  if(!store.get('key', '')){ $('#pjGenNote').textContent = 'Add your API key under ⚙ Key first. Meanwhile, try Option A (sample project) above.'; $('#setBtn').click(); return; }
   $('#pjGen').disabled = true; $('#pjGenNote').textContent = 'Asking Claude to draft a backlog (one call, capped)…';
   try{
     const r = await claude({maxOut:HARD.outBacklog,
