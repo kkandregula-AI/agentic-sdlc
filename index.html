@@ -96,6 +96,11 @@ summary{cursor:pointer;font-weight:700;color:var(--champ)}
 details ul{margin:8px 0 0;padding-left:18px}details li{margin-bottom:5px}
 .chk{display:flex;gap:10px;align-items:flex-start;padding:7px 0;font-size:14px}
 .chk input{margin-top:4px;accent-color:var(--gold);width:16px;height:16px}
+.sub{display:flex;gap:6px;margin:0 0 14px;position:sticky;top:0;z-index:20;background:var(--bg,#0a0a0b);padding:6px 0}.sub[hidden]{display:none}
+.sub button{flex:1;padding:10px 6px;font:600 13px var(--sans);background:var(--s2);border:1px solid var(--line);border-radius:10px;color:var(--mute);cursor:pointer}
+.sub button.on{border-color:var(--gold);color:var(--gold);background:#1c1810}
+.step p{margin:6px 0 10px;font-size:14px}
+.step button{width:100%}
 /* nav */
 nav{position:fixed;left:0;right:0;bottom:0;z-index:30;background:rgba(14,14,16,.96);backdrop-filter:blur(10px);border-top:1px solid var(--line);display:flex;padding:6px 6px calc(6px + env(safe-area-inset-bottom))}
 nav button{flex:1;background:none;border:0;color:var(--mute);font:500 10px var(--sans);padding:6px 1px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;border-radius:8px}
@@ -128,13 +133,24 @@ header h1{font-size:15px}.hbtn{padding:6px 9px}
 <header>
   <h1>AGENTIC SDLC LAB<small>PLAN · DESIGN · BUILD · SECURE · SHIP</small></h1>
   <button class="hbtn gold" id="installBtn" hidden>Install</button>
-  <button class="hbtn" id="learnBtn">Learn</button>
+  <button class="hbtn" id="learnBtn">Lessons</button>
   <button class="hbtn" id="setBtn" aria-label="Settings">⚙ Key</button>
 </header>
 
 <main>
+<div id="subbar" class="sub" hidden></div>
+<section class="view on" id="v-home">
+  <h2>Start here</h2>
+  <p class="lead">Agents do the work in each stage of building software. People approve the decisions. This app lets you see that safely, in 4 easy steps.</p>
+  <div class="card step"><b>1 · Learn the idea</b><p>5 minutes. Read what each agent does and where a person stays in charge.</p><button class="sec" data-go="stages">Open Stages</button></div>
+  <div class="card step"><b>2 · Try one task</b><p>Run one task from plan to release. Review what each agent received and produced, then approve or deny. <span class="tag sim">SIMULATED</span> is free.</p><button class="pri" data-go="sim">Run a task</button></div>
+  <div class="card step"><b>3 · Try a whole project</b><p>See how a full backlog flows through the agents and where reviewers become the bottleneck. Export the plan to PDF, Excel or MS Project.</p><button class="sec" data-go="proj">Run a project</button></div>
+  <div class="card step"><b>4 · Plan your real rollout</b><p>Write an agent brief, estimate time saved, check readiness, then follow the 90-day playbook.</p><button class="sec" data-go="brief">Open Plan</button></div>
+  <div class="card"><span class="tag gold">Want real Claude agents?</span><p style="margin:8px 0 0">Add your own API key in <b>⚙ Key</b>. It unlocks after the <b>Lessons</b> quiz, and strict token limits protect you from surprise costs. Everything else works without a key.</p></div>
+</section>
+
 <!-- STAGES -->
-<section class="view on" id="v-stages">
+<section class="view" id="v-stages">
   <h2>From code generation to a full-lifecycle agent system</h2>
   <p class="lead">Autocomplete speeds up typing. Agents remove waiting. Tap a stage to see the bottleneck it removes, what the agent does, and where a human stays in the loop.</p>
   <div id="stageList"></div>
@@ -147,7 +163,7 @@ header h1{font-size:15px}.hbtn{padding:6px 9px}
 <!-- SIMULATOR -->
 <section class="view" id="v-sim">
   <h2>Agent console: single task</h2>
-  <p class="lead">Run one task through the six agents. At each human gate you see exactly what the agent <b>received</b> and what it <b>produced</b>, then approve it or deny it with feedback. Learn in Simulated mode, or run real Claude agents in Live mode. For a whole backlog, use the <b>Project</b> tab.</p>
+  <p class="lead">Run one task through the six agents. At each human gate you see exactly what the agent <b>received</b> and what it <b>produced</b>, then approve it or deny it with feedback. Learn in Simulated mode, or run real Claude agents in Live mode. For a whole backlog, switch to <b>Whole project</b> above.</p>
   <div class="card">
     <label style="margin-top:0">Mode</label>
     <div class="seg" id="simMode">
@@ -201,7 +217,7 @@ header h1{font-size:15px}.hbtn{padding:6px 9px}
     <ol class="how">
       <li><b>Load or generate a backlog.</b> Pick a sample project, or describe yours and let Claude draft the backlog (needs your API key under ⚙ Key).</li>
       <li><b>Tune the operating model.</b> Change autonomy, parallel items, reviewers and rework. Watch the timeline to see what really slows delivery.</li>
-      <li><b>Generate agent briefs.</b> In the Brief tab, pick a backlog item to prefill a brief for any stage.</li>
+      <li><b>Generate agent briefs.</b> In <b>Plan → Agent brief</b>, pick a backlog item to prefill a brief for any stage.</li>
       <li><b>Take the plan to your tools.</b> Copy the project plan and run the agents in your own tooling (for example Claude Code with your CI). The gates you chose become your review rules.</li>
     </ol>
     <div class="row"><span class="tag" id="pjKey"></span></div>
@@ -341,17 +357,14 @@ header h1{font-size:15px}.hbtn{padding:6px 9px}
   </details>
 </section>
 
-<footer><div style="color:var(--gold);margin-bottom:4px">Version 6 · Learn module, cost limits, PDF/Excel/MS Project</div>Designed &amp; Architected by Krishnamurthy Kandregula · Made by Claude</footer>
+<footer><div style="color:var(--gold);margin-bottom:4px">Version 7 · Simple navigation, Learn module, cost limits, PDF/Excel/MS Project</div>Designed &amp; Architected by Krishnamurthy Kandregula · Made by Claude</footer>
 </main>
 
 <nav id="nav">
-  <button data-v="stages" class="on"><span>◈</span>Stages</button>
-  <button data-v="sim"><span>▶</span>Task</button>
-  <button data-v="proj"><span>▦</span>Project</button>
-  <button data-v="brief"><span>✎</span>Brief</button>
-  <button data-v="roi"><span>⏱</span>Impact</button>
-  <button data-v="ready"><span>✓</span>Ready</button>
-  <button data-v="play"><span>❖</span>Playbook</button>
+  <button data-g="home" class="on"><span>⌂</span>Start</button>
+  <button data-g="try"><span>▶</span>Try it</button>
+  <button data-g="plan"><span>✎</span>Plan</button>
+  <button data-g="guide"><span>❖</span>Guide</button>
 </nav>
 
 <dialog id="keyDlg">
@@ -765,7 +778,7 @@ function updLimitsUi(){
 }
 function refreshLockUi(){
   const s = $('#simMode [data-m=live] small'); if(s) s.textContent = isUnlocked() ? 'uses your API key' : '🔒 finish Learn first';
-  const l = $('#learnBtn'); if(l) l.textContent = isUnlocked() ? 'Learn ✓' : 'Learn';
+  const l = $('#learnBtn'); if(l) l.textContent = isUnlocked() ? 'Lessons ✓' : 'Lessons';
 }
 /* The only function that talks to the API. Every limit is enforced here. */
 async function claude({system, user, maxOut, signal}){
@@ -821,13 +834,13 @@ const LESSONS = [
   <p><b>Limits built into this app:</b></p>
   <ul><li>Economy model by default</li><li>A token budget per run, with a hard stop</li><li>At most 12 API calls per run</li><li>At most 2 revisions per stage and 4 per run</li><li>Short answers: output capped at 450 tokens</li><li>Trimmed context passed between stages</li><li>No automatic retries; 60-second timeout</li><li>A daily token cap on this device</li><li>A confirmation before every Live run</li></ul>
   <div class="callout">These limits live in your browser, so they are guardrails, not a bank vault. For a hard cap, create a separate API key and set a spend limit on it in the Anthropic Console, where your plan offers it. Your key stays in this browser and is sent only to Anthropic.</div>`},
- {t:'A 15-minute path', html:`<ol><li><b>Stages</b> (2 min): skim the six agents.</li><li><b>Task, Simulated, Assist</b> (5 min): run it, read an output, approve once and deny once.</li><li><b>Project</b> (3 min): change reviewers from 2 to 1 and watch the bottleneck move.</li><li><b>Ready</b> (2 min): score your own team.</li><li><b>Live</b> (3 min): a tiny task, then export the results.</li></ol>
+ {t:'A 15-minute path', html:`<ol><li><b>Guide → The 6 stages</b> (2 min): skim the six agents.</li><li><b>Try it → One task, Simulated, Assist</b> (5 min): run it, read an output, approve once and deny once.</li><li><b>Try it → Whole project</b> (3 min): change reviewers from 2 to 1 and watch the bottleneck move.</li><li><b>Plan → Readiness</b> (2 min): score your own team.</li><li><b>Live</b> (3 min): a tiny task, then export the results.</li></ol>
   <p><b>Exports:</b> PDF to read and share, Excel to track, MS Project XML to plan (open it in Project, then Save As .mpp).</p>`}
 ];
 const QUIZ = [
  {q:'Who owns what in an agentic SDLC?', o:['Agents own decisions; humans own the typing', 'Agents own the work in each stage; humans own the decisions at the gates', 'Agents and humans both approve production releases', 'Humans own the work; agents only suggest names'], a:1, why:'Agents do the work; people keep accountability for decisions.'},
  {q:'An agent says "all tests pass", but it had no repository or tools. What should you do?', o:['Approve: it sounds confident', 'Deny, and ask it to state assumptions and remove claims it could not verify', 'Stop using agents altogether', 'Approve and fix it later in production'], a:1, why:'Unverified claims are a classic gate failure. Deny with specific feedback.'},
- {q:'Agents make building much faster. Where does the bottleneck usually move?', o:['Typing speed', 'Human review capacity and waiting between stages', 'Choice of programming language', 'The colour of the interface'], a:1, why:'Review queues and hand-offs become the limit. The Project tab shows this.'},
+ {q:'Agents make building much faster. Where does the bottleneck usually move?', o:['Typing speed', 'Human review capacity and waiting between stages', 'Choice of programming language', 'The colour of the interface'], a:1, why:'Review queues and hand-offs become the limit. Try it → Whole project shows this.'},
  {q:'Which control gives you a HARD limit on API spending?', o:['The token budget inside this app', 'A spend limit set in the Anthropic Console on a dedicated key or workspace', 'Denying fewer outputs', 'Using Autonomous mode'], a:1, why:'In-app limits run in your browser: useful guardrails, but only limits set on the provider side are enforced there.'},
  {q:'When is Autonomous mode appropriate?', o:['Always, because it is fastest', 'When tests, CI, policy checks and rollback are strong, and the work is low risk', 'Only for payments and login changes', 'When reviewers are on holiday'], a:1, why:'Autonomy must be earned with strong safety nets.'}
 ];
@@ -878,7 +891,7 @@ $('#lnNext').onclick = () => {
     if(!$('#lnAck') || !$('#lnAck').checked) return;
     store.set('learn', {v:LEARN_VER, passed:true, at:new Date().toISOString(), score:lsn.score});
     const after = lsn.after; closeLearn(); refreshLockUi();
-    if(after === 'live'){ $('#nav [data-v=sim]').click(); setSimMode('live'); }
+    if(after === 'live'){ go('sim'); setSimMode('live'); }
     return;
   }
   renderLearn(); $('#learn').scrollTop = 0;
@@ -888,11 +901,38 @@ $('#lnClose').onclick = closeLearn;
 $('#learnBtn').onclick = () => openLearn(0);
 
 /* ---------- NAV ---------- */
+const GROUPS = {
+  home:  {views:['home']},
+  try:   {views:['sim','proj'],  labels:['One task','Whole project']},
+  plan:  {views:['brief','roi','ready'], labels:['Agent brief','Time saved','Readiness']},
+  guide: {views:['stages','play'], labels:['The 6 stages','90-day playbook']}
+};
+const VIEW_GROUP = {};
+Object.keys(GROUPS).forEach(g => GROUPS[g].views.forEach(v => VIEW_GROUP[v] = g));
+function go(v){
+  const g = VIEW_GROUP[v] || 'home', G = GROUPS[g];
+  $$('#nav button').forEach(x => x.classList.toggle('on', x.dataset.g === g));
+  $$('.view').forEach(x => x.classList.toggle('on', x.id === 'v-' + v));
+  const bar = $('#subbar');
+  if(G.views.length > 1){
+    bar.hidden = false;
+    bar.innerHTML = G.views.map((id,i) => `<button data-v="${id}" class="${id===v?'on':''}">${G.labels[i]}</button>`).join('');
+  } else { bar.hidden = true; bar.innerHTML = ''; }
+  try{ store.set('lastView', v); }catch(e){}
+  window.scrollTo({top:0});
+}
+const LAST_OF = {home:'home', try:'sim', plan:'brief', guide:'stages'};
 $('#nav').addEventListener('click', e => {
   const b = e.target.closest('button'); if(!b) return;
-  $$('#nav button').forEach(x => x.classList.toggle('on', x === b));
-  $$('.view').forEach(v => v.classList.toggle('on', v.id === 'v-' + b.dataset.v));
-  window.scrollTo({top:0});
+  const g = b.dataset.g, cur = $('.view.on') ? $('.view.on').id.slice(2) : 'home';
+  go(VIEW_GROUP[cur] === g ? cur : LAST_OF[g]);
+});
+$('#subbar').addEventListener('click', e => {
+  const b = e.target.closest('button'); if(!b) return;
+  LAST_OF[VIEW_GROUP[b.dataset.v]] = b.dataset.v; go(b.dataset.v);
+});
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-go]'); if(b){ const v = b.dataset.go; LAST_OF[VIEW_GROUP[v]] = v; go(v); }
 });
 
 /* ---------- STAGES ---------- */
