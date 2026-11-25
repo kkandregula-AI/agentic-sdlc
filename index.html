@@ -115,6 +115,12 @@ ol.how{margin:8px 0;padding-left:20px}ol.how li{margin-bottom:7px;font-size:14px
 .bl{display:grid;grid-template-columns:34px 1fr;gap:4px 8px;font-size:13px;padding:7px 0;border-bottom:1px solid var(--line)}.bl:last-child{border:0}.bl code{font:500 11px var(--mono);color:var(--gold)}.bl small{color:var(--mute);display:block}
 .asg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .gatebox pre.out{max-height:340px;overflow:auto}.gatebox #gateIn{max-height:130px}.gatebox label{color:var(--gold)}#simArtifacts details{padding:8px 12px;margin-bottom:8px}
+.learn{position:fixed;inset:0;z-index:60;background:var(--bg);overflow:auto;padding:calc(14px + env(safe-area-inset-top)) 16px calc(24px + env(safe-area-inset-bottom))}
+.learn[hidden]{display:none}.learn-in{max-width:640px;margin:0 auto}.learn ul,.learn ol{padding-left:20px}.learn li{margin-bottom:7px}
+.callout{background:#1c1810;border:1px solid #6b5a2c;border-radius:10px;padding:10px 12px;margin:12px 0;color:var(--champ)}
+.qopt{display:block;width:100%;text-align:left;background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:10px;margin:6px 0;font:14px var(--sans);cursor:pointer}
+.qopt.on{border-color:var(--gold)}.qopt.ok{border-color:#2f6b4b;background:#10201a}.qopt.bad{border-color:#6b2f2f;background:#201012}
+header h1{font-size:15px}.hbtn{padding:6px 9px}
 @media(max-width:520px){.kv{grid-template-columns:1fr}.kv b{padding-top:6px}.grid2{grid-template-columns:1fr}}
 </style>
 </head>
@@ -122,6 +128,7 @@ ol.how{margin:8px 0;padding-left:20px}ol.how li{margin-bottom:7px;font-size:14px
 <header>
   <h1>AGENTIC SDLC LAB<small>PLAN · DESIGN · BUILD · SECURE · SHIP</small></h1>
   <button class="hbtn gold" id="installBtn" hidden>Install</button>
+  <button class="hbtn" id="learnBtn">Learn</button>
   <button class="hbtn" id="setBtn" aria-label="Settings">⚙ Key</button>
 </header>
 
@@ -150,8 +157,9 @@ ol.how{margin:8px 0;padding-left:20px}ol.how li{margin-bottom:7px;font-size:14px
     <div id="simItemBox"><label>Work item</label><select id="simFeature"></select></div>
     <div id="liveBox" style="display:none">
       <label>Your task</label>
-      <textarea id="liveTask" placeholder="e.g. Add a password-reset flow to our customer portal. Users get an email link that expires in 30 minutes."></textarea>
-      <p class="note">One Claude call per stage, plus one per denial. Live agents have no access to your repository or tools: they draft specs, designs, code proposals and reviews from your description, for you to review. Nothing is executed or deployed. Needs a key under ⚙ Key.</p>
+      <textarea id="liveTask" maxlength="600" placeholder="e.g. Add a password-reset flow to our customer portal. Users get an email link that expires in 30 minutes."></textarea>
+      <p class="note">Keep the task short and specific (max 600 characters): every extra word is paid for in every stage. Live agents have no access to your repository or tools; they draft specs, designs, code proposals and reviews for you to review. Nothing is executed or deployed.</p>
+      <p class="note" id="liveLimits"></p>
     </div>
     <label>Autonomy level</label>
     <div class="seg" id="simAuto">
@@ -244,8 +252,8 @@ ol.how{margin:8px 0;padding-left:20px}ol.how li{margin-bottom:7px;font-size:14px
     <label>Project start date</label><input type="date" id="pjStart">
     <div class="row" style="margin-top:12px"><button class="pri" id="pjDetGen">Generate details with Claude</button><span class="tag sim" id="pjDetTag">TEMPLATE</span></div>
     <p class="note" id="pjDetNote">Optional. Needs your key under ⚙ Key.</p>
-    <div class="row" style="margin-top:10px"><button class="pri" id="pjXlsx">⬇ Excel (.xlsx)</button><button class="pri" id="pjMsp">⬇ MS Project (.xml)</button><button class="sec" id="pjCopy">Copy plan text</button></div>
-    <p class="note"><b>Excel:</b> 5 sheets (summary, WBS schedule, backlog with acceptance criteria, agents and gates, risks). Opens in Excel, Google Sheets and Numbers.<br><b>MS Project:</b> the .mpp format is a closed binary that a browser app cannot write. This .xml is Microsoft Project's own exchange format: in Project use File → Open, then File → Save As → .mpp. It also opens in ProjectLibre and GanttProject.</p>
+    <div class="row" style="margin-top:10px"><button class="pri" id="pjPdf">⬇ PDF</button><button class="pri" id="pjXlsx">⬇ Excel (.xlsx)</button><button class="pri" id="pjMsp">⬇ MS Project (.xml)</button><button class="sec" id="pjCopy">Copy plan text</button></div>
+    <p class="note"><b>PDF:</b> a readable plan with schedule, acceptance criteria, assumptions and risks.<br><b>Excel:</b> 5 sheets (summary, WBS schedule, backlog with acceptance criteria, agents and gates, risks). Opens in Excel, Google Sheets and Numbers.<br><b>MS Project:</b> the .mpp format is a closed binary that a browser app cannot write. This .xml is Microsoft Project's own exchange format: in Project use File → Open, then File → Save As → .mpp. It also opens in ProjectLibre and GanttProject.</p>
   </div>
 </section>
 
@@ -333,7 +341,7 @@ ol.how{margin:8px 0;padding-left:20px}ol.how li{margin-bottom:7px;font-size:14px
   </details>
 </section>
 
-<footer><div style="color:var(--gold);margin-bottom:4px">Version 5 · plan export (Excel, MS Project)</div>Designed &amp; Architected by Krishnamurthy Kandregula · Made by Claude</footer>
+<footer><div style="color:var(--gold);margin-bottom:4px">Version 6 · Learn module, cost limits, PDF/Excel/MS Project</div>Designed &amp; Architected by Krishnamurthy Kandregula · Made by Claude</footer>
 </main>
 
 <nav id="nav">
@@ -347,14 +355,32 @@ ol.how{margin:8px 0;padding-left:20px}ol.how li{margin-bottom:7px;font-size:14px
 </nav>
 
 <dialog id="keyDlg">
-  <h2 style="font-size:16px">Anthropic API key (optional)</h2>
-  <p class="note" style="margin-top:0">Enables REAL mode: Claude drafts your project backlog (Project tab) and tailors agent briefs (Brief tab). Stored only in this browser's localStorage and sent only to api.anthropic.com. Without it, the app works in SIMULATED mode.</p>
-  <input type="password" id="keyInp" placeholder="sk-ant-..." autocomplete="off">
-  <div class="row" style="margin-top:12px">
-    <button class="pri" id="keySave">Save</button><button class="sec" id="keyClear">Clear</button><button class="sec" id="keyClose">Close</button>
-  </div>
+  <h2 style="font-size:16px">Settings: API key and cost limits</h2>
+  <p class="note" style="margin-top:0">Your key is stored only in this browser and sent only to api.anthropic.com. Live features stay locked until you finish the Learn module.</p>
+  <label>Anthropic API key</label><input type="password" id="keyInp" placeholder="sk-ant-..." autocomplete="off">
+  <label>Model for Live agents</label><select id="cfgModel"><option value="economy">Economy (Haiku 5.5): lowest cost</option><option value="standard">Standard (Sonnet 5.5): higher quality, higher cost</option></select>
+  <label>Token budget per run (hard stop)</label><select id="cfgBudget"><option value="8000">8,000</option><option value="12000">12,000</option><option value="20000">20,000</option></select>
+  <label>Daily token cap on this device</label><input type="number" id="cfgDaily" min="5000" max="300000" step="5000">
+  <div class="grid2"><div><label>Your $ per 1M input tokens (optional)</label><input type="number" id="cfgPin" step="0.01" min="0"></div><div><label>Your $ per 1M output tokens (optional)</label><input type="number" id="cfgPout" step="0.01" min="0"></div></div>
+  <p class="note" id="usageLine"></p>
+  <div class="row" style="margin-top:12px"><button class="pri" id="keySave">Save</button><button class="sec" id="keyClear">Clear key</button><button class="sec" id="keyClose">Close</button></div>
+  <p class="note"><b>Hard cap tip:</b> create a separate API key for this app and set a spend limit on it in the Anthropic Console, where your plan offers it. The limits here are guardrails in your browser.</p>
   <p class="note">iPhone: tap Share → Add to Home Screen. Android/desktop: use the Install button.</p>
 </dialog>
+<dialog id="costDlg">
+  <h2 style="font-size:16px">Confirm Live run</h2>
+  <div id="costBody" class="note"></div>
+  <div class="row" style="margin-top:12px"><button class="pri" id="costOk">Confirm &amp; run</button><button class="sec" id="costNo">Cancel</button></div>
+</dialog>
+<div id="learn" class="learn" hidden>
+  <div class="learn-in">
+    <div class="row" style="justify-content:space-between"><span class="dim" id="lnStep"></span><button class="hbtn" id="lnClose">Close ✕</button></div>
+    <div class="bar" style="margin:8px 0 14px"><i id="lnBar" style="width:0;background:var(--gold)"></i></div>
+    <div id="lnBody"></div>
+    <div class="row" style="margin-top:16px"><button class="sec" id="lnBack">Back</button><button class="pri" id="lnNext">Next</button><button class="sec" id="lnSkip">Skip for now (simulations only)</button></div>
+    <p class="note">Simulated features are always open. Live features that call the API unlock after the 5-question check.</p>
+  </div>
+</div>
 
 <script>
 'use strict';
@@ -712,6 +738,155 @@ const QS = [
 
 const GUARDS = ['Agents run in sandboxed environments','Scoped, short-lived tokens (least privilege)','No direct production access for any agent','Hard PR size limit enforced in CI','Human approval required for prod deploys','Secrets never placed in prompts or logs','Every agent action is logged with an owner','A kill switch can pause all agents instantly','Agent changes are evaluated against a test suite before autonomy is raised'];
 
+/* ---------- GUARDRAILS (cost control) ---------- */
+const LEARN_VER = 1;
+const HARD = {maxCalls:12, maxRevStage:2, maxRevRun:4, outAgent:450, outBrief:700, outBacklog:1000, outDetails:2200, timeoutMs:60000};
+const MODELS = {economy:{id:'claude-haiku-5-5', label:'Economy (Haiku 5.5)'}, standard:{id:'claude-sonnet-5-5', label:'Standard (Sonnet 5.5)'}};
+const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+function cfg(){
+  const c = Object.assign({model:'economy', budget:12000, daily:60000, pin:'', pout:''}, store.get('cfg', {}));
+  if(!MODELS[c.model]) c.model = 'economy';
+  c.budget = Math.min(20000, Math.max(3000, +c.budget || 12000)); c.daily = Math.min(300000, Math.max(5000, +c.daily || 60000));
+  return c;
+}
+function usageToday(){ const u = store.get('usage', null); return (u && u.day === todayStr()) ? u : {day:todayStr(), tin:0, tout:0, calls:0}; }
+function addUsage(tin, tout){ const u = usageToday(); u.tin += tin; u.tout += tout; u.calls++; store.set('usage', u); updLimitsUi(); }
+const estTok = s => Math.ceil(String(s).length / 3.5);
+function isUnlocked(){ const l = store.get('learn', null); return !!(l && l.v === LEARN_VER && l.passed); }
+function costText(tin, tout){
+  const c = cfg(); if(c.pin === '' || c.pout === '' || isNaN(+c.pin) || isNaN(+c.pout)) return '';
+  return ' ≈ $' + ((tin * c.pin + tout * c.pout) / 1e6).toFixed(4);
+}
+function updLimitsUi(){
+  const c = cfg(), u = usageToday(), used = u.tin + u.tout;
+  const a = $('#liveLimits');
+  if(a) a.innerHTML = `<b>Cost limits:</b> ${MODELS[c.model].label} · run budget ${c.budget.toLocaleString()} tokens (hard stop) · max ${HARD.maxCalls} calls · ${HARD.maxRevStage} revisions per stage, ${HARD.maxRevRun} per run · answers capped at ${HARD.outAgent} tokens · no automatic retries · today on this device: ${used.toLocaleString()} of ${c.daily.toLocaleString()} tokens${costText(u.tin, u.tout)}. Change these under ⚙ Key.`;
+  const b = $('#usageLine'); if(b) b.textContent = `Used today on this device: ${used.toLocaleString()} tokens in ${u.calls} call${u.calls === 1 ? '' : 's'}${costText(u.tin, u.tout)}.`;
+}
+function refreshLockUi(){
+  const s = $('#simMode [data-m=live] small'); if(s) s.textContent = isUnlocked() ? 'uses your API key' : '🔒 finish Learn first';
+  const l = $('#learnBtn'); if(l) l.textContent = isUnlocked() ? 'Learn ✓' : 'Learn';
+}
+/* The only function that talks to the API. Every limit is enforced here. */
+async function claude({system, user, maxOut, signal}){
+  if(!isUnlocked()) throw new Error('Finish the Learn module to unlock Live features.');
+  const key = store.get('key', ''); if(!key) throw new Error('No API key set. Add it under ⚙ Key.');
+  const c = cfg(), u = usageToday(), projected = estTok(system) + estTok(user) + maxOut;
+  if(c.daily - (u.tin + u.tout) < projected) throw new Error(`Daily token cap reached on this device (${(u.tin + u.tout).toLocaleString()} of ${c.daily.toLocaleString()}). Raise it under ⚙ Key, or try tomorrow. Nothing was sent.`);
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), HARD.timeoutMs);
+  if(signal) signal.addEventListener('abort', () => ctl.abort());
+  let res, data;
+  try{
+    res = await fetch('https://api.anthropic.com/v1/messages', {method:'POST', signal:ctl.signal,
+      headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:MODELS[c.model].id, max_tokens:maxOut, system, messages:[{role:'user', content:user}]})});
+    data = await res.json();
+  }catch(e){ throw new Error(e && e.name === 'AbortError' ? 'Request timed out or was cancelled. No retry was made.' : (e.message || 'Network error')); }
+  finally{ clearTimeout(t); }
+  if(!res.ok) throw new Error((data.error && data.error.message) || ('HTTP ' + res.status));
+  const tin = (data.usage && data.usage.input_tokens) || estTok(system + user), tout = (data.usage && data.usage.output_tokens) || 0;
+  addUsage(tin, tout);
+  let text = (data.content || []).map(x => x.text || '').join('').trim();
+  if(!text) throw new Error('Empty reply from the API');
+  const truncated = data.stop_reason === 'max_tokens';
+  if(truncated) text += '\n[Output cut at the token cap to limit cost.]';
+  return {text, tin, tout, truncated};
+}
+function confirmRun(){
+  const c = cfg(), u = usageToday(), used = u.tin + u.tout;
+  const worst = (c.pin !== '' && c.pout !== '' && !isNaN(+c.pin) && !isNaN(+c.pout)) ? ` Worst case at your prices: about $${(Math.max(+c.pin, +c.pout) * c.budget / 1e6).toFixed(3)}.` : '';
+  $('#costBody').innerHTML = `<p style="margin-top:0">This Live run uses <b>${MODELS[c.model].label}</b> and sends your task to the Anthropic API with your key.</p><ul style="padding-left:18px"><li>Hard stop at <b>${c.budget.toLocaleString()} tokens</b> for this run, checked before every call. A typical run is roughly 5,000 to 9,000 (estimate).</li><li>At most <b>${HARD.maxCalls} calls</b>. Revisions: ${HARD.maxRevStage} per stage, ${HARD.maxRevRun} per run.</li><li>Today on this device: ${used.toLocaleString()} of ${c.daily.toLocaleString()} tokens.</li></ul><p class="note">${worst} Each denial you make triggers one more paid call.</p>`;
+  return new Promise(res => {
+    const d = $('#costDlg'); let ans = false;
+    $('#costOk').onclick = () => { ans = true; d.close(); }; $('#costNo').onclick = () => d.close(); d.onclose = () => res(ans); d.showModal();
+  });
+}
+
+/* ---------- LEARN MODULE ---------- */
+const LESSONS = [
+ {t:'Beyond code generation', html:`<p>A code assistant helps you <b>type faster</b>. Agentic software engineering gives agents whole jobs across the lifecycle: planning, design, building, refactoring, security checks and release.</p>
+  <p>Where does delivery time really go? Rarely into typing. It goes into <b>waiting</b>: for a clear spec, a design decision, a review, a security sign-off, a pipeline.</p>
+  <div class="callout">Key idea: agents shorten the waits between stages. They do not remove the need for review.</div>`},
+ {t:'Six agents, human gates', html:`<ul><li><b>Planning Agent:</b> turns requests into specs and acceptance criteria</li><li><b>Architecture Agent:</b> drafts design options, decisions and API contracts</li><li><b>Coding Agent:</b> implements small, tested changes</li><li><b>Refactoring Agent:</b> cleans up and upgrades without changing behavior</li><li><b>Security Validation Agent:</b> scans, triages and proposes fixes</li><li><b>Release &amp; Ops Agent:</b> release notes, canary checks, rollback plans</li></ul>
+  <p>A <b>gate</b> is where a person looks at what the agent was given (input) and what it produced (output), then approves or denies.</p>
+  <div class="callout">Agents own the <b>work</b> in a stage. Humans own the <b>decisions</b> at the gates.</div>`},
+ {t:'How much autonomy?', html:`<ul><li><b>Assist:</b> a human approves every stage. Safest and slowest. Start here.</li><li><b>Supervised:</b> humans gate scope, code, security and release. Agents move design and refactor on their own.</li><li><b>Autonomous:</b> only the release is gated, plus any high-risk finding. Fastest, and it needs strong foundations.</li></ul>
+  <p>Before raising autonomy, check: tests you trust, CI on every change, small pull requests, security scans and a quick rollback.</p>
+  <div class="callout">Fewer gates means faster delivery and fewer chances to catch a defect. Earn autonomy; do not assume it.</div>`},
+ {t:'How to review agent work', html:`<p>At each gate, compare the OUTPUT with the INPUT. Ask:</p>
+  <ul><li>Does it answer the task and respect earlier decisions?</li><li>Are assumptions stated, or hidden?</li><li>Does it claim it ran, tested or verified something it could not?</li><li>Did it add scope nobody asked for?</li><li>Any security or privacy red flags (secrets, personal data, broad permissions)?</li><li>Could you test it? Are the criteria measurable?</li></ul>
+  <p><b>Approve</b> when it is good enough to build on. <b>Deny</b> with specific feedback, for example "remove the claim that tests passed and list your assumptions". <b>Stop</b> when the task itself is wrong.</p>
+  <div class="callout">Vague feedback wastes money: every denial triggers another paid call in Live mode.</div>`},
+ {t:'Live mode and cost control', html:`<p><b>What Live mode does:</b> one Claude call per stage, using your own API key. The agents have <b>no access to your code or tools</b>. They draft specs, designs, code proposals and reviews from your description. Treat every output as a draft.</p>
+  <p><b>Limits built into this app:</b></p>
+  <ul><li>Economy model by default</li><li>A token budget per run, with a hard stop</li><li>At most 12 API calls per run</li><li>At most 2 revisions per stage and 4 per run</li><li>Short answers: output capped at 450 tokens</li><li>Trimmed context passed between stages</li><li>No automatic retries; 60-second timeout</li><li>A daily token cap on this device</li><li>A confirmation before every Live run</li></ul>
+  <div class="callout">These limits live in your browser, so they are guardrails, not a bank vault. For a hard cap, create a separate API key and set a spend limit on it in the Anthropic Console, where your plan offers it. Your key stays in this browser and is sent only to Anthropic.</div>`},
+ {t:'A 15-minute path', html:`<ol><li><b>Stages</b> (2 min): skim the six agents.</li><li><b>Task, Simulated, Assist</b> (5 min): run it, read an output, approve once and deny once.</li><li><b>Project</b> (3 min): change reviewers from 2 to 1 and watch the bottleneck move.</li><li><b>Ready</b> (2 min): score your own team.</li><li><b>Live</b> (3 min): a tiny task, then export the results.</li></ol>
+  <p><b>Exports:</b> PDF to read and share, Excel to track, MS Project XML to plan (open it in Project, then Save As .mpp).</p>`}
+];
+const QUIZ = [
+ {q:'Who owns what in an agentic SDLC?', o:['Agents own decisions; humans own the typing', 'Agents own the work in each stage; humans own the decisions at the gates', 'Agents and humans both approve production releases', 'Humans own the work; agents only suggest names'], a:1, why:'Agents do the work; people keep accountability for decisions.'},
+ {q:'An agent says "all tests pass", but it had no repository or tools. What should you do?', o:['Approve: it sounds confident', 'Deny, and ask it to state assumptions and remove claims it could not verify', 'Stop using agents altogether', 'Approve and fix it later in production'], a:1, why:'Unverified claims are a classic gate failure. Deny with specific feedback.'},
+ {q:'Agents make building much faster. Where does the bottleneck usually move?', o:['Typing speed', 'Human review capacity and waiting between stages', 'Choice of programming language', 'The colour of the interface'], a:1, why:'Review queues and hand-offs become the limit. The Project tab shows this.'},
+ {q:'Which control gives you a HARD limit on API spending?', o:['The token budget inside this app', 'A spend limit set in the Anthropic Console on a dedicated key or workspace', 'Denying fewer outputs', 'Using Autonomous mode'], a:1, why:'In-app limits run in your browser: useful guardrails, but only limits set on the provider side are enforced there.'},
+ {q:'When is Autonomous mode appropriate?', o:['Always, because it is fastest', 'When tests, CI, policy checks and rollback are strong, and the work is low risk', 'Only for payments and login changes', 'When reviewers are on holiday'], a:1, why:'Autonomy must be earned with strong safety nets.'}
+];
+let lsn = {i:0, ans:{}, graded:false, score:0, after:''};
+function lnTotal(){ return LESSONS.length + (isUnlocked() ? 0 : 2); }
+function openLearn(i, after){
+  lsn = {i:i || 0, ans:{}, graded:false, score:0, after:after || ''};
+  $('#learn').hidden = false; document.body.style.overflow = 'hidden'; renderLearn(); $('#learn').scrollTop = 0;
+}
+function closeLearn(){ $('#learn').hidden = true; document.body.style.overflow = ''; store.set('learnSeen', true); }
+function renderLearn(){
+  const n = lsn.i, T = lnTotal(), unl = isUnlocked(), L = LESSONS.length;
+  $('#lnStep').textContent = n < L ? `LESSON ${n + 1} OF ${L}` : (n === L ? 'KNOWLEDGE CHECK' : 'UNLOCK LIVE MODE');
+  $('#lnBar').style.width = ((n + 1) / T * 100) + '%';
+  let h = '', next = 'Next', dis = false;
+  if(n < L){
+    h = `<h2>${LESSONS[n].t}</h2>${LESSONS[n].html}`;
+    if(n === L - 1) next = unl ? 'Done' : 'Take the knowledge check';
+  } else if(n === L){
+    h = '<h2>Knowledge check</h2><p class="lead">Answer all 5 questions. You need 4 correct to continue.</p>' + QUIZ.map((q, qi) => `<div class="q"><p><b>${qi + 1}.</b> ${q.q}</p>${q.o.map((o, oi) => `<button class="qopt ${lsn.ans[qi] === oi ? 'on' : ''} ${lsn.graded ? (oi === q.a ? 'ok' : (lsn.ans[qi] === oi ? 'bad' : '')) : ''}" data-q="${qi}" data-o="${oi}">${o}</button>`).join('')}${lsn.graded ? `<p class="note">${q.why}</p>` : ''}</div>`).join('');
+    if(lsn.graded) h += `<p><b>Score: ${lsn.score}/${QUIZ.length}</b> ${lsn.score >= 4 ? '✓ Passed' : '. Review the lessons (Back) and try again.'}</p>`;
+    next = !lsn.graded ? 'Check answers' : (lsn.score >= 4 ? 'Continue' : 'Try again');
+    dis = !lsn.graded && Object.keys(lsn.ans).length < QUIZ.length;
+  } else {
+    h = `<h2>Unlock Live mode</h2><p>Knowledge check passed (${lsn.score}/${QUIZ.length}).</p><label class="chk" style="text-transform:none;font:14px var(--sans);color:var(--text);margin:8px 0"><input type="checkbox" id="lnAck"><span>I understand that Live mode sends my task to the Anthropic API using my own key, that usage can be billed to my account, and that I will set a spend limit in the Anthropic Console.</span></label>`;
+    next = 'Unlock Live mode'; dis = true;
+  }
+  $('#lnBody').innerHTML = h;
+  $('#lnBack').style.visibility = n > 0 ? 'visible' : 'hidden';
+  $('#lnNext').textContent = next; $('#lnNext').disabled = dis;
+  $('#lnSkip').style.display = (!unl && n < L) ? '' : 'none';
+}
+$('#lnBody').addEventListener('click', e => {
+  const b = e.target.closest('.qopt'); if(!b || lsn.graded) return;
+  lsn.ans[+b.dataset.q] = +b.dataset.o; renderLearn();
+});
+$('#lnBody').addEventListener('change', e => { if(e.target.id === 'lnAck') $('#lnNext').disabled = !e.target.checked; });
+$('#lnBack').onclick = () => { if(lsn.i > 0){ lsn.i--; renderLearn(); $('#learn').scrollTop = 0; } };
+$('#lnNext').onclick = () => {
+  const n = lsn.i, L = LESSONS.length, unl = isUnlocked();
+  if(n < L - 1) lsn.i++;
+  else if(n === L - 1){ if(unl){ closeLearn(); return; } lsn.i++; }
+  else if(n === L){
+    if(!lsn.graded){ lsn.score = QUIZ.reduce((a, q, qi) => a + (lsn.ans[qi] === q.a ? 1 : 0), 0); lsn.graded = true; }
+    else if(lsn.score >= 4) lsn.i++;
+    else { lsn.ans = {}; lsn.graded = false; lsn.score = 0; }
+  } else {
+    if(!$('#lnAck') || !$('#lnAck').checked) return;
+    store.set('learn', {v:LEARN_VER, passed:true, at:new Date().toISOString(), score:lsn.score});
+    const after = lsn.after; closeLearn(); refreshLockUi();
+    if(after === 'live'){ $('#nav [data-v=sim]').click(); setSimMode('live'); }
+    return;
+  }
+  renderLearn(); $('#learn').scrollTop = 0;
+};
+$('#lnSkip').onclick = closeLearn;
+$('#lnClose').onclick = closeLearn;
+$('#learnBtn').onclick = () => openLearn(0);
+
 /* ---------- NAV ---------- */
 $('#nav').addEventListener('click', e => {
   const b = e.target.closest('button'); if(!b) return;
@@ -738,8 +913,8 @@ $('#nav').addEventListener('click', e => {
 })();
 
 /* ---------- TASK CONSOLE ---------- */
-let simMode = 'sim', autoLvl = 'supervised', runId = 0, gateResolve = null, sim = {}, artifacts = [];
-const MAX_REV = 3, FENCE = '`'.repeat(3);
+let simMode = 'sim', autoLvl = 'supervised', runId = 0, gateResolve = null, sim = {}, artifacts = [], runCtl = null, runBusy = false;
+const FENCE = '`'.repeat(3);
 $('#simFeature').innerHTML = Object.entries(FEATURES).map(([k,f]) => `<option value="${k}">${f.name}</option>`).join('');
 function fmtH(min){ return (min/60).toFixed(1) + 'h'; }
 function fmtK(n){ return n >= 1000 ? (n/1000).toFixed(1) + 'k' : String(n); }
@@ -750,7 +925,7 @@ function addLog(t, cls){
 }
 function updStats(){
   const live = simMode === 'live';
-  $('#stL1').textContent = live ? 'tokens used' : 'elapsed (incl. review wait)';
+  $('#stL1').textContent = live ? `tokens used (budget ${fmtK(cfg().budget)})` : 'elapsed (incl. review wait)';
   $('#stL2').textContent = live ? 'agent calls' : 'agent work time';
   $('#st1').textContent = live ? fmtK(sim.tokens || 0) : fmtH(sim.elapsed || 0);
   $('#st2').textContent = live ? (sim.calls || 0) : (sim.agent || 0) + 'm';
@@ -762,6 +937,7 @@ function setAuto(a){
   $('#autoNote').textContent = AUTO[a].note;
 }
 function setSimMode(m){
+  if(m === 'live' && !isUnlocked()){ openLearn(0, 'live'); return; }
   simMode = m;
   $$('#simMode button').forEach(b => b.classList.toggle('on', b.dataset.m === m));
   $('#simItemBox').style.display = m === 'sim' ? 'block' : 'none';
@@ -769,57 +945,47 @@ function setSimMode(m){
   const t = $('#simTag'); t.textContent = m === 'live' ? 'REAL · CLAUDE API' : 'SIMULATED'; t.className = 'tag ' + (m === 'live' ? 'real' : 'sim');
   $('#simNote').textContent = m === 'sim'
     ? 'Simulated: agent outputs are templates built from the work item. The INPUT you see is exactly what a live agent would receive. Each gate adds 90 min review wait and 20 min of active human time; manual baseline is about 60h. Not a benchmark.'
-    : 'Live: every output comes from Claude. Treat each one as a draft for review. Token counts are shown so you can estimate cost.';
-  resetSim();
+    : 'Live: every output comes from Claude. Treat each one as a draft for review. Token counts are shown so you can see the cost.';
+  updLimitsUi(); resetSim();
 }
 $('#simMode').addEventListener('click', e => { const b = e.target.closest('button'); if(b) setSimMode(b.dataset.m); });
 $('#simAuto').addEventListener('click', e => { const b = e.target.closest('button'); if(b){ setAuto(b.dataset.a); resetSim(); } });
 $('#simFeature').addEventListener('change', resetSim);
 function resetSim(){
-  runId++; if(gateResolve){ gateResolve(null); gateResolve = null; }
-  sim = {elapsed:0, agent:0, gates:0, denials:0, tokens:0, calls:0, humanActive:0, task:''}; artifacts = [];
+  runId++; if(runCtl){ runCtl.abort(); runCtl = null; } if(gateResolve){ gateResolve(null); gateResolve = null; } runBusy = false;
+  sim = {elapsed:0, agent:0, gates:0, denials:0, tokens:0, tin:0, tout:0, calls:0, humanActive:0, task:'', rec:null, outcome:''}; artifacts = [];
   $('#simLog').innerHTML = '<div class="m">Press Run to start.</div>';
   $('#gateBox').classList.remove('on'); $('#simSummary').style.display = 'none'; $('#simArtifacts').style.display = 'none';
   $('#simRun').disabled = false; renderChips([]); updStats();
 }
 function stageSystem(s){
-  return `You are the ${s.agent} in an agentic software-delivery pipeline (${s.name} stage). Your job: ${s.does.join('; ')}. Guardrail: ${s.guard} Produce: ${s.output}. You have no repository, network or tool access: work only from the task and upstream artifacts, state your assumptions explicitly, and never claim to have run or tested anything. If you hit this stop condition, begin your reply with "ESCALATE:" and explain: ${s.stop}. Keep the reply under 350 words, in plain text or markdown, with code only in short fenced snippets.`;
+  return `You are the ${s.agent} in an agentic software-delivery pipeline (${s.name} stage). Job: ${s.does.join('; ')}. Guardrail: ${s.guard} Produce: ${s.output}. You have no repository, network or tool access: use only the task and upstream notes, state assumptions, and never claim to have run or tested anything. If this stop condition applies, begin with "ESCALATE:" and explain: ${s.stop}. Be concise: under 180 words, plain text, no code unless essential (max 6 lines).`;
 }
 function buildInput(s, task, upstream, fb, prevOut){
+  const ups = upstream.length <= 2 ? upstream : [upstream[0], upstream[upstream.length - 1]];
   return `TASK
 ${task}
 
-CONTEXT TO USE
+CONTEXT
 - ${s.context}
-- No repository access: state assumptions explicitly.
+- No repository access: state assumptions.
 
-APPROVED UPSTREAM ARTIFACTS
-${upstream.length ? upstream.map(u => `## ${u.name}\n${u.text.slice(0, 1800)}`).join('\n\n') : '(none: you are the first stage)'}
-${fb ? `\nREVIEWER FEEDBACK TO ADDRESS\n${fb}\n\nYOUR PREVIOUS OUTPUT\n${prevOut.slice(0, 2500)}\n` : ''}`;
+APPROVED UPSTREAM (trimmed to save tokens)
+${ups.length ? ups.map(u => `## ${u.name}\n${u.text.slice(0, 800)}`).join('\n\n') : '(none: you are the first stage)'}${fb ? `\n\nREVIEWER FEEDBACK TO FIX\n${fb}\n\nYOUR PREVIOUS OUTPUT (trimmed)\n${prevOut.slice(0, 1200)}` : ''}`;
 }
 function simOutput(s, fk, rev, fb){
   return SIM_ART[fk][s.id]
     + (rev ? `\n\n--- REVISION ${rev} ---\nReviewer feedback: "${fb}"\nAgent response: updated the relevant section above and re-checked it against the upstream artifacts.` : '')
     + '\n\n(Simulated content for learning. A live agent would tailor this to your real task.)';
 }
-async function callAgent(s, userMsg){
-  const res = await fetch('https://api.anthropic.com/v1/messages', {method:'POST',
-    headers:{'content-type':'application/json','x-api-key':store.get('key', ''),'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-    body:JSON.stringify({model:'claude-sonnet-5-5', max_tokens:1100, system:stageSystem(s), messages:[{role:'user', content:userMsg}]})});
-  const data = await res.json();
-  if(!res.ok) throw new Error((data.error && data.error.message) || ('HTTP ' + res.status));
-  const text = (data.content || []).map(c => c.text || '').join('').trim();
-  if(!text) throw new Error('Empty reply from the API');
-  return {text, usage:data.usage || {}};
-}
-function askGate(i, input, out, canDeny, escalate){
+function askGate(i, input, out, canDeny, escalate, hint){
   return new Promise(res => {
     gateResolve = res;
     $('#gateStage').textContent = STAGES[i].agent;
     $('#gateNote').textContent = escalate ? '⚠ The agent flagged a stop condition (ESCALATE). Review carefully. ' + STAGES[i].gate : STAGES[i].gate;
     $('#gateIn').textContent = input; $('#gateOut').textContent = out; $('#gateFb').value = '';
     $('#gNo').style.display = canDeny ? '' : 'none';
-    $('#gateHint').textContent = canDeny ? 'Denying sends your feedback back to the agent for a revision.' : 'Maximum revisions reached. Approve this output or stop the pipeline.';
+    $('#gateHint').textContent = canDeny ? hint : 'No revisions left here. Approve this output or stop the pipeline.';
     $('#gateBox').classList.add('on'); $('#gateBox').scrollIntoView({behavior:'smooth', block:'start'});
   });
 }
@@ -827,7 +993,7 @@ function answerGate(v){ if(gateResolve){ const r = gateResolve; gateResolve = nu
 $('#gOk').onclick = () => answerGate({action:'ok'});
 $('#gStop').onclick = () => answerGate({action:'stop'});
 $('#gNo').onclick = () => {
-  const fb = $('#gateFb').value.trim();
+  const fb = $('#gateFb').value.trim().slice(0, 500);
   if(!fb){ $('#gateFb').focus(); $('#gateHint').textContent = 'Please say what to fix, so the agent can revise.'; return; }
   answerGate({action:'deny', feedback:fb});
 };
@@ -840,43 +1006,65 @@ function artifactsMd(){
 function renderArtifacts(){
   const box = $('#simArtifacts'); if(!artifacts.length){ box.style.display = 'none'; return; }
   box.style.display = 'block';
-  box.innerHTML = `<b style="color:var(--champ)">Agent inputs &amp; outputs</b><div class="row" style="margin:8px 0"><button class="sec" id="artCopy">Copy all</button><button class="sec" id="artDl">Download .md</button></div>`
+  box.innerHTML = `<b style="color:var(--champ)">Agent inputs &amp; outputs · export</b><div class="row" style="margin:8px 0"><button class="pri" id="artPdf">⬇ PDF report</button><button class="pri" id="artXlsx">⬇ Excel</button><button class="pri" id="artMsp">⬇ MS Project (.xml)</button></div><div class="row" style="margin-bottom:8px"><button class="sec" id="artDl">Markdown</button><button class="sec" id="artCopy">Copy all</button></div><p class="note">PDF: readable report. Excel: run record, decisions and an execution plan. MS Project: execution plan for this task (open in Project, then Save As .mpp).</p>`
     + artifacts.map(a => `<details><summary>${esc(a.stage.agent)} ${a.rev ? `<span class="tag">rev ${a.rev}</span>` : ''} ${a.gated ? '<span class="tag real">approved</span>' : '<span class="tag">auto-passed</span>'}</summary><label>Input</label><pre class="out" style="max-height:200px;overflow:auto">${esc(a.input)}</pre><label>Output</label><pre class="out" style="max-height:260px;overflow:auto">${esc(a.output)}</pre></details>`).join('');
 }
 $('#simArtifacts').addEventListener('click', async e => {
-  if(e.target.id === 'artCopy'){ try{ await navigator.clipboard.writeText(artifactsMd()); e.target.textContent = 'Copied ✓'; }catch(x){ e.target.textContent = 'Copy blocked'; } setTimeout(() => e.target.textContent = 'Copy all', 1500); }
-  if(e.target.id === 'artDl'){ const u = URL.createObjectURL(new Blob([artifactsMd()], {type:'text/markdown'})); const a = document.createElement('a'); a.href = u; a.download = 'agentic-sdlc-run.md'; a.click(); setTimeout(() => URL.revokeObjectURL(u), 1000); }
+  const id = e.target.id; if(!id) return;
+  try{
+    if(id === 'artCopy'){ try{ await navigator.clipboard.writeText(artifactsMd()); e.target.textContent = 'Copied ✓'; }catch(x){ e.target.textContent = 'Copy blocked'; } setTimeout(() => e.target.textContent = 'Copy all', 1500); }
+    if(id === 'artDl') saveBlob(new Blob([artifactsMd()], {type:'text/markdown'}), 'agentic-sdlc-run.md');
+    if(id === 'artPdf') exportRunPdf();
+    if(id === 'artXlsx') exportRunXlsx();
+    if(id === 'artMsp') exportMsp(taskCtx());
+  }catch(err){ addLog('Export failed: ' + err.message, 'h'); }
 });
-function finishRun(stopped){
+function finishRun(stopped, msg){
   const live = simMode === 'live', sum = $('#simSummary');
+  if(sim.rec && !sim.rec.finished) sim.rec.finished = new Date();
+  if(!sim.outcome) sim.outcome = stopped ? 'stopped by reviewer' : 'complete';
   renderArtifacts(); sum.style.display = 'block';
-  const head = stopped ? 'Stopped by reviewer' : 'Pipeline complete';
-  sum.innerHTML = `<b style="color:var(--champ)">${head}</b><p style="margin:6px 0 0">` + (live
-    ? `${sim.calls} agent call${sim.calls === 1 ? '' : 's'} using ${fmtK(sim.tokens)} tokens, ${sim.gates} human gate${sim.gates === 1 ? '' : 's'} passed, ${sim.denials} denial${sim.denials === 1 ? '' : 's'}. Every artifact is a draft for human review: nothing was executed, tested or deployed.`
-    : `End to end in <b>${fmtH(sim.elapsed)}</b> of clock time with <b>${fmtH(sim.humanActive)}</b> of active human review across ${sim.gates} gate${sim.gates === 1 ? '' : 's'}${sim.denials ? ` (${sim.denials} denial${sim.denials > 1 ? 's' : ''})` : ''}. Manual baseline: about ${BASELINE_H}h of hands-on effort. ${autoLvl === 'assist' ? 'Try Supervised to see how fewer gates cut waiting.' : autoLvl === 'autonomous' ? 'Fastest, but only safe when tests and policy-as-code are strong.' : 'A balanced default: humans decide, agents do the work.'}`) + '</p>';
-  $('#simRun').disabled = false;
+  const head = stopped ? 'Run stopped' : 'Pipeline complete';
+  sum.innerHTML = `<b style="color:var(--champ)">${head}</b><p style="margin:6px 0 0">` + (msg ? esc(msg) + ' ' : '') + (live
+    ? `${sim.calls} agent call${sim.calls === 1 ? '' : 's'} using ${sim.tokens.toLocaleString()} tokens (in ${sim.tin.toLocaleString()}, out ${sim.tout.toLocaleString()})${costText(sim.tin, sim.tout)}, ${sim.gates} human gate${sim.gates === 1 ? '' : 's'} passed, ${sim.denials} denial${sim.denials === 1 ? '' : 's'}. Every artifact is a draft for human review: nothing was executed, tested or deployed.`
+    : `${stopped ? 'So far: ' : 'End to end in '}<b>${fmtH(sim.elapsed)}</b> of clock time with <b>${fmtH(sim.humanActive)}</b> of active human review across ${sim.gates} gate${sim.gates === 1 ? '' : 's'}${sim.denials ? ` (${sim.denials} denial${sim.denials > 1 ? 's' : ''})` : ''}. Manual baseline: about ${BASELINE_H}h of hands-on effort. ${autoLvl === 'assist' ? 'Try Supervised to see how fewer gates cut waiting.' : autoLvl === 'autonomous' ? 'Fastest, but only safe when tests and policy-as-code are strong.' : 'A balanced default: humans decide, agents do the work.'}`) + '</p>';
+  $('#simRun').disabled = false; runBusy = false; runCtl = null; updLimitsUi();
 }
 $('#simRun').onclick = async () => {
-  resetSim(); const my = runId, live = simMode === 'live';
+  if(runBusy) return;
+  const live = simMode === 'live';
   let task, f = null;
   if(live){
-    task = $('#liveTask').value.trim();
+    if(!isUnlocked()){ openLearn(0, 'live'); return; }
+    task = $('#liveTask').value.trim().slice(0, 600);
     if(!task){ $('#liveTask').focus(); return; }
     if(!store.get('key', '')){ $('#simLog').innerHTML = '<div class="h">Live mode needs your Anthropic key. Add it under ⚙ Key, then run again.</div>'; $('#setBtn').click(); return; }
+    if(!(await confirmRun())) return;
   } else { f = FEATURES[$('#simFeature').value]; task = f.name; }
-  sim.task = task; $('#simRun').disabled = true; $('#simLog').innerHTML = '';
-  addLog('▶ Task: ' + task, 'a'); addLog('Mode: ' + (live ? 'LIVE (Claude API)' : 'SIMULATED') + ' · Autonomy: ' + autoLvl, 'm');
+  resetSim(); const my = runId; runBusy = true; runCtl = new AbortController(); const signal = runCtl.signal;
+  const c = cfg();
+  sim.task = task; sim.rec = {task, mode:live ? 'live' : 'sim', model:live ? MODELS[c.model].label : 'n/a (simulated)', auto:autoLvl, started:new Date(), finished:null, stages:[]};
+  $('#simRun').disabled = true; $('#simLog').innerHTML = '';
+  addLog('▶ Task: ' + task, 'a'); addLog('Mode: ' + (live ? 'LIVE (' + MODELS[c.model].label + ')' : 'SIMULATED') + ' · Autonomy: ' + autoLvl, 'm');
   const states = [], upstream = [];
+  const halt = (msg, i, outcome) => { addLog('■ ' + msg, 'h'); sim.outcome = outcome || 'stopped'; if(i !== undefined){ states[i] = 'gate'; renderChips(states); } updStats(); finishRun(true, msg); };
   for(let i = 0; i < STAGES.length; i++){
     const s = STAGES[i]; states[i] = 'active'; renderChips(states); addLog('— ' + s.agent, 'a');
+    const st = {id:s.id, name:s.name, agent:s.agent, t0:new Date(), t1:null, g0:null, g1:null, revs:0, status:'Not reached', tin:0, tout:0, decisions:[]};
+    sim.rec.stages.push(st);
     let rev = 0, fb = '', prevOut = '', done = false;
     while(!done){
       const input = buildInput(s, task, upstream, fb, prevOut), shownIn = 'SYSTEM\n' + stageSystem(s) + '\n\nUSER\n' + input;
       let out;
       try{
         if(live){
+          if(sim.calls >= HARD.maxCalls){ halt(`Call limit reached (${HARD.maxCalls}). Nothing more was sent.`, i, 'call limit'); return; }
+          const proj = Math.max(Math.ceil((estTok(stageSystem(s)) + estTok(input)) * 1.25), sim.lastIn || 0) + HARD.outAgent;
+          if(sim.tokens + proj > c.budget){ halt(`Token budget reached: ${sim.tokens.toLocaleString()} used of ${c.budget.toLocaleString()}. Nothing more was sent. Raise the budget under ⚙ Key to go further.`, i, 'token budget'); return; }
           addLog(rev ? `  ↺ revision ${rev}: calling Claude…` : '  calling Claude…', 'm');
-          const r = await callAgent(s, input); out = r.text; sim.calls++; sim.tokens += (r.usage.input_tokens || 0) + (r.usage.output_tokens || 0);
+          const r = await claude({system:stageSystem(s), user:input, maxOut:HARD.outAgent, signal});
+          if(my !== runId) return;
+          out = r.text; sim.lastIn = r.tin; sim.calls++; sim.tin += r.tin; sim.tout += r.tout; sim.tokens += r.tin + r.tout; st.tin += r.tin; st.tout += r.tout;
         } else {
           if(!rev) for(const line of f.logs[s.id]){ await sleep(500); if(my !== runId) return; addLog('  ' + line, line.startsWith('HIGH') ? 'h' : ''); }
           else { addLog(`  ↺ revision ${rev}: agent revising…`, 'm'); await sleep(700); }
@@ -884,27 +1072,93 @@ $('#simRun').onclick = async () => {
         }
       }catch(err){
         if(my !== runId) return;
-        addLog('  ✖ ' + err.message, 'h'); addLog('Pipeline stopped. Check your key and connection, then run again.', 'h');
-        states[i] = 'gate'; renderChips(states); updStats(); finishRun(true); return;
+        addLog('  ✖ ' + err.message, 'h'); halt('Stopped: ' + err.message + ' (no retry was made)', i, 'error'); return;
       }
       if(my !== runId) return; updStats();
+      st.t1 = new Date(); st.input = shownIn; st.output = out;
       const escalate = live && /^\s*ESCALATE:/i.test(out);
       const needGate = AUTO[autoLvl].gates.includes(s.id) || (!live && s.id === 'security' && f.high) || escalate;
       if(needGate){
         states[i] = 'gate'; renderChips(states); addLog(escalate ? '  ⚠ agent escalated: human decision required' : '  ⛔ waiting for human gate…', 'h');
-        const r = await askGate(i, shownIn, out, rev < MAX_REV, escalate); if(my !== runId || !r) return;
-        if(r.action === 'stop'){ addLog('■ Stopped by reviewer', 'h'); states[i] = 'gate'; renderChips(states); finishRun(true); return; }
-        if(r.action === 'deny'){ sim.denials++; fb = r.feedback; prevOut = out; rev++; addLog('  ✗ Denied: ' + fb, 'h'); states[i] = 'active'; renderChips(states); continue; }
+        const canDeny = rev < HARD.maxRevStage && sim.denials < HARD.maxRevRun;
+        const hint = `Revisions left: ${HARD.maxRevStage - rev} for this stage, ${HARD.maxRevRun - sim.denials} for this run.${live ? ' Each denial costs another paid call.' : ''} Denying sends your feedback back to the agent.`;
+        st.g0 = new Date();
+        const r = await askGate(i, shownIn, out, canDeny, escalate, hint); if(my !== runId || !r) return;
+        st.g1 = new Date(); st.decisions.push({at:st.g1, action:r.action === 'ok' ? 'Approved' : r.action === 'deny' ? 'Denied' : 'Stopped', feedback:r.feedback || ''});
+        if(r.action === 'stop'){ st.status = 'Stopped here'; halt('Stopped by reviewer.', i, 'stopped by reviewer'); return; }
+        if(r.action === 'deny'){ sim.denials++; fb = r.feedback; prevOut = out; rev++; st.revs = rev; addLog('  ✗ Denied: ' + fb, 'h'); states[i] = 'active'; renderChips(states); continue; }
         sim.gates++; sim.humanActive += GATE_ACTIVE; if(!live) sim.elapsed += GATE_WAIT;
-        addLog('  ✓ Approved', 'ok'); updStats();
-      } else addLog('  ✓ Auto-passed (no gate at this autonomy level)', 'm');
-      artifacts.push({stage:s, input:shownIn, output:out, rev, gated:needGate}); upstream.push({name:s.name, text:out}); done = true;
+        addLog('  ✓ Approved', 'ok'); updStats(); st.status = 'Approved';
+      } else { addLog('  ✓ Auto-passed (no gate at this autonomy level)', 'm'); st.status = 'Auto-passed'; }
+      st.revs = rev;
+      artifacts.push({stage:s, input:shownIn, userIn:input, output:out, rev, gated:needGate}); upstream.push({name:s.name, text:out}); done = true;
     }
     states[i] = 'done'; renderChips(states);
   }
-  addLog('✔ Pipeline complete', 'ok'); finishRun(false);
+  addLog('✔ Pipeline complete', 'ok'); sim.outcome = 'complete'; finishRun(false);
 };
 setAuto('supervised'); setSimMode('sim');
+
+/* ---------- RUN EXPORTS (PDF, Excel, MS Project) ---------- */
+function taskItemDet(){
+  const plan = artifacts.find(a => a.stage.id === 'plan'), lines = plan ? plan.output.split('\n') : [];
+  let acc = [], on = false;
+  for(const l of lines){
+    if(!on){ if(/acceptance/i.test(l)) on = true; continue; }
+    const m = l.match(/^\s*(?:\d+[.)]|[-•*])\s+(.+)/);
+    if(m) acc.push(m[1].replace(/\*\*/g, '').trim().slice(0, 220));
+    else if(acc.length && (!l.trim() || /^\s*(#|\*\*)/.test(l) || /^[A-Z][A-Z &()\/-]{3,}$/.test(l.trim()))) break;
+  }
+  if(!acc.length) acc = ['Works end to end as described in the task', 'Automated tests pass in CI', 'No open high or critical security findings', 'Approved at every required human gate'];
+  return {summary:(sim.task || '').slice(0, 240), acceptance:acc.slice(0, 8), risks:[]};
+}
+function taskCtx(){
+  const title = (sim.task || 'Task').slice(0, 60);
+  const r = runProject({items:[{id:'T1', title, size:3, deps:[], sprint:2, high:false}], auto:autoLvl, wip:1, reviewers:1, rework:0, agentX:pj.agentX, lat:pj.lat * 60, revMin:pj.revMin});
+  const manH = STAGES.reduce((a, s) => a + MAN_H[s.id], 0), agDays = r.makespan * (1 + pj.buf / 100) / 480, manDays = manH / 5;
+  const live = sim.rec && sim.rec.mode === 'live';
+  return {L:{r, manDays, agDays, pct:Math.round((1 - agDays / manDays) * 100), util:r.reviewMins / r.makespan, verdict:'Single task: no queue across items', manH},
+    name:'Task plan: ' + title, auto:autoLvl, model:{wip:1, rev:1, rew:0}, itemDet:taskItemDet,
+    projDet:() => ({assumptions:[`Execution plan for one task using the six agents at ${autoLvl} autonomy`, `Agent time x${pj.agentX}; reviewer pickup ${pj.lat}h; review ${pj.revMin} min`, 'Working time is 8-hour days, Monday to Friday', 'Estimate from a simulation model, not a commitment'], risks:['Agent outputs are drafts and need human review', 'Live agents had no access to your repository or tools']}),
+    real:!!(live && sim.calls > 0), file:'agentic-sdlc-task-plan', sprintName:() => 'Execution plan', summaryName:'Summary'};
+}
+function runSheets(){
+  const R = sim.rec, live = R.mode === 'live', c = cfg(), cap = s => String(s || '').slice(0, 32000);
+  const cost = costText(sim.tin, sim.tout).replace(' ≈ ', '');
+  const summary = [['Field', 'Value'], ['Task', R.task], ['Mode', live ? 'Live (Claude API)' : 'Simulated'], ['Model', R.model], ['Autonomy level', R.auto],
+    ['Started', R.started], ['Finished', R.finished || ''], ['Outcome', sim.outcome || 'complete'], ['API calls', sim.calls], ['Tokens in', sim.tin], ['Tokens out', sim.tout], ['Total tokens', sim.tokens],
+    ['Run token budget', live ? c.budget : ''], ['Estimated cost', live ? (cost || 'not set (add your prices under ⚙ Key)') : ''], ['Human gates passed', sim.gates], ['Denials', sim.denials],
+    ['Note', live ? 'Live agents had no access to your repository or tools. Outputs are drafts for human review.' : 'Simulated content for learning.'],
+    ['Generated by', 'Agentic SDLC Lab · Designed & Architected by Krishnamurthy Kandregula · Made by Claude']];
+  const stages = [['Stage', 'Agent', 'Status', 'Revisions', 'Tokens in', 'Tokens out', 'Agent started', 'Agent finished', 'Gate opened', 'Human decision at']].concat(R.stages.map(s => [s.name, s.agent, s.status, s.revs, s.tin, s.tout, s.t0, s.t1 || '', s.g0 || '', s.g1 || '']));
+  const decisions = [['Time', 'Stage', 'Decision', 'Reviewer feedback']];
+  R.stages.forEach(s => s.decisions.forEach(d => decisions.push([d.at, s.name, d.action, d.feedback])));
+  const arts = [['Stage', 'Agent', 'Revision', 'Gate', 'Input (what the agent received)', 'Output (what it produced)']].concat(artifacts.map(a => [a.stage.name, a.stage.agent, a.rev, a.gated ? 'Human-approved' : 'Auto-passed', cap(a.input), cap(a.output)]));
+  return [{name:'Run summary', rows:summary, widths:[26, 90]}, {name:'Stages', rows:stages, widths:[10, 24, 14, 10, 10, 10, 17, 17, 17, 17]},
+    {name:'Decision log', rows:decisions, widths:[17, 10, 12, 80]}, {name:'Artifacts', rows:arts, widths:[10, 24, 9, 15, 70, 90]}];
+}
+function exportRunXlsx(){
+  if(!sim.rec) return;
+  const plan = planSheets(Object.assign(taskCtx(), {summaryName:'Plan summary'}));
+  saveBlob(makeXlsx(runSheets().concat(plan)), 'agentic-sdlc-run.xlsx');
+}
+function exportRunPdf(){
+  if(!sim.rec) return;
+  const R = sim.rec, live = R.mode === 'live', B = [], fd = d => d ? d.toLocaleString() : '-';
+  B.push({t:'h1', x:'Agentic SDLC run report'}, {t:'p', x:'Task: ' + R.task});
+  B.push({t:'p', x:`Mode: ${live ? 'Live (Claude API)' : 'Simulated'}   Model: ${R.model}   Autonomy: ${R.auto}\nStarted: ${fd(R.started)}   Finished: ${fd(R.finished)}\nOutcome: ${sim.outcome || 'complete'}\nCalls: ${sim.calls}   Tokens: ${sim.tokens} (in ${sim.tin}, out ${sim.tout})${costText(sim.tin, sim.tout)}\nHuman gates passed: ${sim.gates}   Denials: ${sim.denials}`});
+  if(live) B.push({t:'p', x:'Note: Live agents had no access to your repository or tools. Every output below is a draft for human review; nothing was executed, tested or deployed.'});
+  B.push({t:'h2', x:'Stage summary'});
+  B.push({t:'code', x:R.stages.map(s => `${s.name.padEnd(9)} ${s.status.padEnd(13)} revisions ${s.revs}   tokens ${s.tin + s.tout}`).join('\n')});
+  const dl = []; R.stages.forEach(s => s.decisions.forEach(d => dl.push(`${d.at.toLocaleTimeString()}  ${s.name}: ${d.action}${d.feedback ? ' - ' + d.feedback : ''}`)));
+  if(dl.length){ B.push({t:'h2', x:'Human decisions'}, {t:'code', x:dl.join('\n')}); }
+  artifacts.forEach(a => {
+    B.push({t:'h2', x:`${a.stage.agent} (${a.stage.name})`}, {t:'p', x:`${a.gated ? 'Human-approved' : 'Auto-passed'}${a.rev ? ', after ' + a.rev + ' revision' + (a.rev > 1 ? 's' : '') : ''}`});
+    B.push({t:'h3', x:'Output'}, {t:'code', x:a.output});
+    B.push({t:'h3', x:'Input given to the agent (trimmed; full input is in the Excel file)'}, {t:'code', x:a.userIn.slice(0, 900) + (a.userIn.length > 900 ? '\n[...]' : '')});
+  });
+  saveBlob(makePdf(B, 'Agentic SDLC Lab - Designed & Architected by Krishnamurthy Kandregula - Made by Claude'), 'agentic-sdlc-run.pdf');
+}
 
 /* ---------- BRIEF ---------- */
 $('#brStage').innerHTML = STAGES.map(s => `<option value="${s.id}">${s.name} · ${s.agent}</option>`).join('');
@@ -944,29 +1198,20 @@ function setMode(real){
 setMode(false);
 $('#brGen').onclick = async () => {
   const s = STAGES.find(x => x.id === $('#brStage').value);
-  const task = $('#brTask').value.trim(), cons = $('#brCons').value.trim();
+  const task = $('#brTask').value.trim().slice(0, 600), cons = $('#brCons').value.trim().slice(0, 300);
   if(!task){ $('#brTask').focus(); return; }
   const out = $('#brOut'); out.style.display = 'block';
-  const key = store.get('key', '');
   let text = templateBrief(s, task, cons), real = false;
-  if(key){
-    out.textContent = 'Asking Claude…'; $('#brGen').disabled = true;
+  if(store.get('key', '') && isUnlocked()){
+    out.textContent = 'Asking Claude (one call, capped)…'; $('#brGen').disabled = true;
     try{
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method:'POST',
-        headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-        body: JSON.stringify({model:'claude-sonnet-5-5', max_tokens:1400,
-          system:'You write precise briefs for autonomous software-engineering agents. Output a plain-text brief with these headings: GOAL, CONTEXT TO LOAD FIRST, CONSTRAINTS, TOOLS ALLOWED, STEPS, ACCEPTANCE CRITERIA, STOP AND ESCALATE WHEN, HUMAN CHECKPOINT, OUTPUT FORMAT. Be specific, concise and testable. No preamble.',
-          messages:[{role:'user', content:`Agent: ${s.agent} (${s.name} stage)\nAgent role: ${s.does.join('; ')}\nRequired human gate: ${s.gate}\nGuardrail: ${s.guard}\nAllowed tools: ${s.tools}\n\nTask: ${task}\nExtra constraints: ${cons || 'none'}`}]})
-      });
-      const data = await res.json();
-      if(!res.ok) throw new Error((data.error && data.error.message) || ('HTTP ' + res.status));
-      text = (data.content || []).map(c => c.text || '').join('').trim() || text; real = true;
-    }catch(err){
-      text = templateBrief(s, task, cons) + '\n\n[API call failed: ' + err.message + ' — showing template instead]';
-    }
+      const r = await claude({maxOut:HARD.outBrief,
+        system:'You write precise briefs for autonomous software-engineering agents. Output a plain-text brief with these headings: GOAL, CONTEXT TO LOAD FIRST, CONSTRAINTS, TOOLS ALLOWED, STEPS, ACCEPTANCE CRITERIA, STOP AND ESCALATE WHEN, HUMAN CHECKPOINT, OUTPUT FORMAT. Be specific, concise (under 250 words) and testable. No preamble.',
+        user:`Agent: ${s.agent} (${s.name} stage)\nAgent role: ${s.does.join('; ')}\nRequired human gate: ${s.gate}\nGuardrail: ${s.guard}\nAllowed tools: ${s.tools}\n\nTask: ${task}\nExtra constraints: ${cons || 'none'}`});
+      text = r.text; real = true;
+    }catch(err){ text = templateBrief(s, task, cons) + '\n\n[API call failed: ' + err.message + ' (template shown; nothing was retried)]'; }
     $('#brGen').disabled = false;
-  }
+  } else if(store.get('key', '')) text += '\n\n[Finish the Learn module to enable REAL mode.]';
   briefText = text; out.textContent = text; setMode(real); $('#brCopy').disabled = false;
 };
 $('#brCopy').onclick = async () => {
@@ -1181,24 +1426,20 @@ $('#brItem').addEventListener('change', e => {
   $('#brTask').value = `${it.title} (work item ${it.id} of the project "${pj.name}", sprint ${it.sprint}, size ${it.size}/5${it.high ? ', high risk' : ''}${it.deps.length ? ', builds on ' + it.deps.join(', ') : ''})`;
 });
 $('#pjGen').onclick = async () => {
-  const d = $('#pjDesc').value.trim(), key = store.get('key', '');
+  const d = $('#pjDesc').value.trim().slice(0, 500);
   if(!d){ $('#pjDesc').focus(); return; }
-  if(!key){ $('#pjGenNote').textContent = 'Add your Anthropic key under ⚙ Key first. Meanwhile, try a sample project above.'; $('#setBtn').click(); return; }
-  $('#pjGen').disabled = true; $('#pjGenNote').textContent = 'Asking Claude to draft a backlog…';
+  if(!isUnlocked()){ openLearn(0); return; }
+  if(!store.get('key', '')){ $('#pjGenNote').textContent = 'Add your Anthropic key under ⚙ Key first. Meanwhile, try a sample project above.'; $('#setBtn').click(); return; }
+  $('#pjGen').disabled = true; $('#pjGenNote').textContent = 'Asking Claude to draft a backlog (one call, capped)…';
   try{
-    const res = await fetch('https://api.anthropic.com/v1/messages', {method:'POST',
-      headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-sonnet-5-5', max_tokens:1500,
-        system:'You are an experienced delivery lead. Return ONLY a valid JSON array, no prose and no code fences, of 6 to 12 work items for the described software project. Each item: {"id":"W1","title":"max 6 words","size":1-5 relative complexity,"deps":["ids of EARLIER items it needs"],"sprint":1-4,"high":true only for payments, auth, personal data or safety-critical work}. List items so that dependencies always come first.',
-        messages:[{role:'user', content:d}]})});
-    const data = await res.json();
-    if(!res.ok) throw new Error((data.error && data.error.message) || ('HTTP ' + res.status));
-    let t = (data.content || []).map(c => c.text || '').join('');
-    const a = t.indexOf('['), b = t.lastIndexOf(']'); if(a < 0 || b < a) throw new Error('No JSON in reply');
+    const r = await claude({maxOut:HARD.outBacklog,
+      system:'You are an experienced delivery lead. Return ONLY a valid JSON array, no prose and no code fences, of 6 to 10 work items for the described software project. Each item: {"id":"W1","title":"max 5 words","size":1-5 relative complexity,"deps":["ids of EARLIER items it needs"],"sprint":1-4,"high":true only for payments, auth, personal data or safety-critical work}. List items so that dependencies always come first.',
+      user:d});
+    const t = r.text, a = t.indexOf('['), b = t.lastIndexOf(']'); if(a < 0 || b < a) throw new Error('No complete JSON in the reply (nothing was retried)');
     const items = sanitizeItems(JSON.parse(t.slice(a, b + 1))); if(!items) throw new Error('Backlog was too small or invalid');
     pj.items = items; pj.name = d.length > 44 ? d.slice(0, 44) + '…' : d;
     $('#pjMode').textContent = 'REAL · CLAUDE API'; $('#pjMode').className = 'tag real';
-    $('#pjGenNote').textContent = 'Backlog generated. Review it under Backlog below, then tune the model.';
+    $('#pjGenNote').textContent = `Backlog generated (${(r.tin + r.tout).toLocaleString()} tokens used). Review it under Backlog below, then tune the model.`;
     renderProject();
   }catch(err){ $('#pjGenNote').textContent = 'Could not generate: ' + err.message; }
   $('#pjGen').disabled = false;
@@ -1258,17 +1499,18 @@ function projDet(){
 }
 function updDetTag(){ const real = !!activeDet(), t = $('#pjDetTag'); t.textContent = real ? 'REAL · CLAUDE API' : 'TEMPLATE'; t.className = 'tag ' + (real ? 'real' : 'sim'); }
 
-function buildPlan(){
-  const r = pjLast.r, start = parseDay(pj.start || defaultStart());
+function buildPlan(ctx){
+  ctx = ctx || projCtx();
+  const r = ctx.L.r, start = parseDay(pj.start || defaultStart());
   const rows = [], lastUid = {}; let uid = 0;
   const mk = o => { o.uid = ++uid; o.preds = o.preds || []; o.predItems = o.predItems || []; rows.push(o); return o; };
   const total = Math.round(r.makespan * (1 + pj.buf / 100));
   const sprints = [...new Set(r.items.map(i => i.sprint))].sort((a, b) => a - b);
   sprints.forEach((sp, si) => {
     const its = r.items.filter(i => i.sprint === sp);
-    mk({wbs:String(si + 1), level:1, name:`Sprint ${sp}`, type:'Sprint', summary:true, s:Math.min(...its.map(i => i.segs[0].a)), e:Math.max(...its.map(i => i.finish)), res:'', notes:`${its.length} work items`});
+    mk({wbs:String(si + 1), level:1, name:ctx.sprintName ? ctx.sprintName(sp) : `Sprint ${sp}`, type:'Sprint', summary:true, s:Math.min(...its.map(i => i.segs[0].a)), e:Math.max(...its.map(i => i.finish)), res:'', notes:`${its.length} work items`});
     its.forEach((it, ii) => {
-      const d = itemDet(it);
+      const d = ctx.itemDet(it);
       mk({wbs:`${si + 1}.${ii + 1}`, level:2, name:`${it.id} · ${it.title}`, type:'Work item', summary:true, s:it.segs[0].a, e:it.finish, res:'', risk:it.high ? 'High' : '',
         notes:`${d.summary}\nACCEPTANCE CRITERIA\n` + d.acceptance.map((a, k) => `${k + 1}. ${a}`).join('\n') + (d.risks.length ? '\nRISKS\n' + d.risks.map(x => '- ' + x).join('\n') : '')});
       let prev = null, k = 0; const seen = {};
@@ -1290,7 +1532,7 @@ function buildPlan(){
     mk({wbs:String(sprints.length + 1), level:1, name:`Integration & contingency buffer (${pj.buf}%)`, type:'Buffer', summary:false, s:r.makespan, e:total, res:'', preds:[lastUid[li.id]], notes:'Allowance for integration, environment issues and rework outside the simulated gates.'});
   }
   rows.forEach(w => w.predItems.forEach(d => { if(lastUid[d]) w.preds.push(lastUid[d]); }));
-  const root = {uid:0, wbs:'0', level:0, name:pj.name, type:'Project', summary:true, s:0, e:total, res:'', preds:[], predItems:[], notes:'Agentic SDLC plan generated from a simulation.'};
+  const root = {uid:0, wbs:'0', level:0, name:ctx.name, type:'Project', summary:true, s:0, e:total, res:'', preds:[], predItems:[], notes:'Agentic SDLC plan generated from a simulation.'};
   return {rows:[root, ...rows], start, total};
 }
 
@@ -1338,13 +1580,14 @@ function makeXlsx(sheets){
   sheets.forEach((s, i) => files.push({name:`xl/worksheets/sheet${i + 1}.xml`, data:sheetXml(s.rows, s.widths)}));
   return makeZip(files, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 }
-function exportXlsx(){
-  const P = buildPlan(), L = pjLast, wbsOf = Object.fromEntries(P.rows.map(r => [r.uid, r.wbs]));
+function planSheets(ctx){
+  ctx = ctx || projCtx();
+  const P = buildPlan(ctx), L = ctx.L, wbsOf = Object.fromEntries(P.rows.map(r => [r.uid, r.wbs]));
   const D = (m, end) => atWork(P.start, m, end), h = m => Math.round(m / 6) / 10;
-  const pd = projDet(), real = !!activeDet();
-  const summary = [['Field', 'Value'], ['Project', pj.name], ['Planned start', D(0, false)], ['Planned finish (incl. buffer)', D(P.total, true)],
-    ['Autonomy level', pj.auto], ['Human gates', AUTO[pj.auto].gates.map(g => STAGES.find(s => s.id === g).name).join(', ') + ' (security always gated for high-risk items)'],
-    ['Parallel work items', pj.wip], ['Human reviewers', pj.rev], ['Rework rate (%)', pj.rew],
+  const pd = ctx.projDet(), real = ctx.real;
+  const summary = [['Field', 'Value'], ['Project', ctx.name], ['Planned start', D(0, false)], ['Planned finish (incl. buffer)', D(P.total, true)],
+    ['Autonomy level', ctx.auto], ['Human gates', AUTO[ctx.auto].gates.map(g => STAGES.find(s => s.id === g).name).join(', ') + ' (security always gated for high-risk items)'],
+    ['Parallel work items', ctx.model.wip], ['Human reviewers', ctx.model.rev], ['Rework rate (%)', ctx.model.rew],
     ['Manual estimate (working days)', Math.round(L.manDays * 10) / 10], ['With agents (working days)', Math.round(L.agDays * 10) / 10], ['Faster than manual (%)', L.pct],
     ['Reviewer load (%)', Math.round(L.util * 100)], ['Likely bottleneck', L.verdict],
     ['Schedule source', 'Simulation (illustrative, not a commitment)'], ['Task content source', real ? 'Claude API (real)' : 'Template'],
@@ -1352,22 +1595,23 @@ function exportXlsx(){
   const plan = [['WBS', 'Task', 'Type', 'Resource', 'Start', 'Finish', 'Duration (h)', 'Predecessors', 'Risk', 'Details']].concat(P.rows.map(r =>
     [r.wbs, '    '.repeat(Math.max(0, r.level - 1)) + r.name, r.type, r.res, D(r.s, false), D(r.e, true), h(r.e - r.s), r.preds.map(u => wbsOf[u]).join(', '), r.risk || '', r.notes || '']));
   const backlog = [['ID', 'Work item', 'Sprint', 'Size (1-5)', 'High risk', 'Depends on', 'Agent stages', 'Summary', 'Acceptance criteria', 'Risks']].concat(L.r.items.map(it => {
-    const d = itemDet(it);
+    const d = ctx.itemDet(it);
     return [it.id, it.title, it.sprint, it.size, it.high ? 'Yes' : 'No', it.deps.join(', '), it.stages.map(i => STAGES[i].name).join(' > '), d.summary, d.acceptance.map((a, k) => `${k + 1}. ${a}`).join('\n'), d.risks.join('\n')];
   }));
   const agents = [['Stage', 'Agent', 'What it does', 'Human gate', 'Guardrail', 'Tools', 'Stop and escalate when', 'Output', 'Measure']].concat(STAGES.map(s =>
     [s.name, s.agent, s.does.join('; '), s.gate, s.guard, s.tools, s.stop, s.output, s.metric]));
   const ra = [['Type', 'Text']].concat(pd.assumptions.map(t => ['Assumption', t]), pd.risks.map(t => ['Risk', t]));
-  const blob = makeXlsx([
-    {name:'Summary', rows:summary, widths:[30, 80]},
+  return [
+    {name:ctx.summaryName || 'Summary', rows:summary, widths:[30, 80]},
     {name:'Plan (WBS)', rows:plan, widths:[10, 48, 14, 24, 17, 17, 12, 14, 8, 70]},
     {name:'Backlog & criteria', rows:backlog, widths:[7, 34, 8, 9, 9, 12, 34, 44, 60, 40]},
     {name:'Agents & gates', rows:agents, widths:[10, 24, 50, 40, 40, 36, 36, 36, 30]},
-    {name:'Risks & assumptions', rows:ra, widths:[14, 90]}]);
-  saveBlob(blob, 'agentic-sdlc-plan.xlsx');
+    {name:'Risks & assumptions', rows:ra, widths:[14, 90]}];
 }
-function exportMsp(){
-  const P = buildPlan(), D = (m, end) => atWork(P.start, m, end), dur = m => `PT${Math.floor(m / 60)}H${m % 60}M0S`;
+function exportXlsx(ctx){ ctx = ctx || projCtx(); saveBlob(makeXlsx(planSheets(ctx)), ctx.file + '.xlsx'); }
+function exportMsp(ctx){
+  ctx = ctx || projCtx();
+  const P = buildPlan(ctx), D = (m, end) => atWork(P.start, m, end), dur = m => `PT${Math.floor(m / 60)}H${m % 60}M0S`;
   const resNames = [...new Set(P.rows.map(r => r.res).filter(Boolean))], ruid = Object.fromEntries(resNames.map((n, i) => [n, i + 1]));
   const wd = (t, w) => `<WeekDay><DayType>${t}</DayType><DayWorking>${w}</DayWorking>${w ? '<WorkingTimes><WorkingTime><FromTime>09:00:00</FromTime><ToTime>17:00:00</ToTime></WorkingTime></WorkingTimes>' : ''}</WeekDay>`;
   const tasks = P.rows.map(r => {
@@ -1377,8 +1621,8 @@ function exportMsp(){
   const res = resNames.map(n => `<Resource><UID>${ruid[n]}</UID><ID>${ruid[n]}</ID><Name>${xs(n)}</Name><Type>1</Type><IsNull>0</IsNull><Initials>${xs(n.split(/\s+/).map(w => w[0]).join('').slice(0, 3))}</Initials><Group>${n.startsWith('Reviewer') ? 'Human reviewers' : 'AI agents'}</Group><MaxUnits>1</MaxUnits></Resource>`).join('');
   let au = 0; const asg = P.rows.filter(r => r.res).map(r => `<Assignment><UID>${++au}</UID><TaskUID>${r.uid}</TaskUID><ResourceUID>${ruid[r.res]}</ResourceUID><Units>1</Units></Assignment>`).join('');
   const xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Project xmlns="http://schemas.microsoft.com/project"><SaveVersion>14</SaveVersion><Name>${xs(pj.name.slice(0, 60))}</Name><Title>${xs(pj.name)}</Title><CreationDate>${isoL(new Date())}</CreationDate><ScheduleFromStart>1</ScheduleFromStart><StartDate>${isoL(D(0, false))}</StartDate><FinishDate>${isoL(D(P.total, true))}</FinishDate><CalendarUID>1</CalendarUID><DefaultStartTime>09:00:00</DefaultStartTime><DefaultFinishTime>17:00:00</DefaultFinishTime><MinutesPerDay>480</MinutesPerDay><MinutesPerWeek>2400</MinutesPerWeek><DaysPerMonth>20</DaysPerMonth><Calendars><Calendar><UID>1</UID><Name>Standard</Name><IsBaseCalendar>1</IsBaseCalendar><WeekDays>${wd(1, 0)}${wd(2, 1)}${wd(3, 1)}${wd(4, 1)}${wd(5, 1)}${wd(6, 1)}${wd(7, 0)}</WeekDays></Calendar></Calendars><Tasks>${tasks}</Tasks><Resources>${res}</Resources><Assignments>${asg}</Assignments></Project>`;
-  saveBlob(new Blob([xml], {type:'application/xml'}), 'agentic-sdlc-plan.xml');
+<Project xmlns="http://schemas.microsoft.com/project"><SaveVersion>14</SaveVersion><Name>${xs(ctx.name.slice(0, 60))}</Name><Title>${xs(ctx.name)}</Title><CreationDate>${isoL(new Date())}</CreationDate><ScheduleFromStart>1</ScheduleFromStart><StartDate>${isoL(D(0, false))}</StartDate><FinishDate>${isoL(D(P.total, true))}</FinishDate><CalendarUID>1</CalendarUID><DefaultStartTime>09:00:00</DefaultStartTime><DefaultFinishTime>17:00:00</DefaultFinishTime><MinutesPerDay>480</MinutesPerDay><MinutesPerWeek>2400</MinutesPerWeek><DaysPerMonth>20</DaysPerMonth><Calendars><Calendar><UID>1</UID><Name>Standard</Name><IsBaseCalendar>1</IsBaseCalendar><WeekDays>${wd(1, 0)}${wd(2, 1)}${wd(3, 1)}${wd(4, 1)}${wd(5, 1)}${wd(6, 1)}${wd(7, 0)}</WeekDays></Calendar></Calendars><Tasks>${tasks}</Tasks><Resources>${res}</Resources><Assignments>${asg}</Assignments></Project>`;
+  saveBlob(new Blob([xml], {type:'application/xml'}), ctx.file + '.xml');
 }
 async function saveBlob(blob, name){
   const file = new File([blob], name, {type:blob.type});
@@ -1387,37 +1631,102 @@ async function saveBlob(blob, name){
   }
   const u = URL.createObjectURL(blob), a = document.createElement('a'); a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 2000);
 }
+/* --- minimal PDF writer (Helvetica / Courier, Latin-1 text) --- */
+function pdfClean(s){
+  const M = {'·':'-','•':'-','→':'->','›':'>','“':'"','”':'"','‘':"'",'’':"'",'–':'-','—':'-','…':'...','✓':'[ok]','✔':'[ok]','✗':'[x]','✖':'[x]','⛔':'[gate]','⚠':'[!]','■':'[stop]','▶':'>','↺':'(rev)','≈':'~','≥':'>=','≤':'<='};
+  return String(s).replace(/[\u0080-\u009F]/g, '?').replace(/[^\u0000-ÿ]/gu, ch => M[ch] !== undefined ? M[ch] : '?').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
+}
+function wrapText(t, n){
+  const out = [];
+  String(t).split('\n').forEach(line => {
+    if(line.length <= n){ out.push(line); return; }
+    let rest = line; const lead = line.match(/^\s*/)[0].slice(0, 12);
+    while(rest.length > n){ let k = rest.lastIndexOf(' ', n); if(k < n * 0.5) k = n; out.push(rest.slice(0, k)); rest = lead + rest.slice(k).replace(/^ +/, ''); }
+    out.push(rest);
+  });
+  return out;
+}
+function makePdf(blocks, footer){
+  const W = 595, H = 842, MG = 48, pages = [[]]; let y = H - MG;
+  const e2 = s => pdfClean(s).replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+  const line = (font, size, text, lh, x) => { if(y - lh < MG + 20){ pages.push([]); y = H - MG; } y -= lh; pages[pages.length - 1].push(`BT /${font} ${size} Tf ${x} ${y.toFixed(1)} Td (${e2(text)}) Tj ET`); };
+  const gap = h => { y -= h; };
+  const mono = (text, size, x) => wrapText(pdfClean(text), Math.floor((W - MG - x) / (size * 0.6))).forEach(l => line('F3', size, l, size + 2.6, x));
+  const head = (text, size, lh) => wrapText(pdfClean(text), Math.floor((W - 2 * MG) / (size * 0.58))).forEach(l => line('F2', size, l, lh, MG));
+  blocks.forEach(b => {
+    if(b.t === 'h1'){ gap(4); head(b.x, 18, 24); gap(4); }
+    else if(b.t === 'h2'){ gap(10); head(b.x, 13, 17); gap(2); }
+    else if(b.t === 'h3'){ gap(6); head(b.x, 10, 14); }
+    else if(b.t === 'p'){ mono(b.x, 8.5, MG); gap(4); }
+    else if(b.t === 'code'){ mono(b.x, 8, MG + 8); gap(4); }
+    else gap(8);
+  });
+  const N = pages.length, objs = [];
+  objs[1] = '<< /Type /Catalog /Pages 2 0 R >>';
+  objs[2] = `<< /Type /Pages /Kids [${pages.map((p, i) => `${6 + 2 * i} 0 R`).join(' ')}] /Count ${N} >>`;
+  objs[3] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>';
+  objs[4] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>';
+  objs[5] = '<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>';
+  pages.forEach((p, i) => {
+    const stream = p.join('\n') + `\nBT /F1 7 Tf ${MG} 26 Td (${e2(footer + '  -  page ' + (i + 1) + ' of ' + N)}) Tj ET`;
+    objs[6 + 2 * i] = `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents ${7 + 2 * i} 0 R >>`;
+    objs[7 + 2 * i] = `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`;
+  });
+  let out = '%PDF-1.4\n'; const offs = [];
+  for(let i = 1; i < objs.length; i++){ offs[i] = out.length; out += `${i} 0 obj\n${objs[i]}\nendobj\n`; }
+  const xr = out.length;
+  out += `xref\n0 ${objs.length}\n0000000000 65535 f \n` + offs.slice(1).map(o => String(o).padStart(10, '0') + ' 00000 n \n').join('') + `trailer\n<< /Size ${objs.length} /Root 1 0 R >>\nstartxref\n${xr}\n%%EOF`;
+  const bytes = new Uint8Array(out.length); for(let i = 0; i < out.length; i++) bytes[i] = out.charCodeAt(i) & 255;
+  return new Blob([bytes], {type:'application/pdf'});
+}
+function exportProjectPdf(){
+  const ctx = projCtx(), P = buildPlan(ctx), L = ctx.L, B = [], pd = ctx.projDet();
+  const D = (m, e) => atWork(P.start, m, e), fm = d => `${p2(d.getMonth() + 1)}-${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}`, fday = d => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
+  B.push({t:'h1', x:'Agentic SDLC project plan'}, {t:'p', x:ctx.name});
+  B.push({t:'p', x:`Planned start: ${fday(D(0, false))}   Planned finish (incl. ${pj.buf}% buffer): ${fday(D(P.total, true))}\nOperating model: ${ctx.auto} autonomy, ${pj.wip} items in parallel, ${pj.rev} reviewers, ${pj.rew}% rework\nManual estimate: ${L.manDays.toFixed(1)} working days   With agents: ${L.agDays.toFixed(1)} working days (${L.pct}% faster)\nReviewer load: ${Math.round(L.util * 100)}%   Likely bottleneck: ${L.verdict}\nContent source: ${ctx.real ? 'Claude API (real)' : 'Template'}   Schedule source: simulation (not a commitment)`});
+  B.push({t:'h2', x:'Schedule'});
+  B.push({t:'code', x:'WBS     Task                                      Start        Finish       Hours\n' + P.rows.map(r => `${r.wbs.padEnd(7)} ${('  '.repeat(Math.max(0, r.level - 1)) + r.name).slice(0, 40).padEnd(41)} ${fm(D(r.s, false))}  ${fm(D(r.e, true))}  ${(Math.round((r.e - r.s) / 6) / 10).toFixed(1).padStart(5)}`).join('\n')});
+  B.push({t:'h2', x:'Work items and acceptance criteria'});
+  L.r.items.forEach(it => {
+    const d = ctx.itemDet(it);
+    B.push({t:'h3', x:`${it.id} - ${it.title} (sprint ${it.sprint}, size ${it.size}/5${it.high ? ', HIGH RISK' : ''})`}, {t:'p', x:d.summary});
+    B.push({t:'code', x:d.acceptance.map((a, k) => `${k + 1}. ${a}`).join('\n') + (d.risks.length ? '\nRisks: ' + d.risks.join('; ') : '')});
+  });
+  B.push({t:'h2', x:'Assumptions'}, {t:'code', x:pd.assumptions.map(a => '- ' + a).join('\n')}, {t:'h2', x:'Risks'}, {t:'code', x:pd.risks.map(a => '- ' + a).join('\n')});
+  saveBlob(makePdf(B, 'Agentic SDLC Lab - Designed & Architected by Krishnamurthy Kandregula - Made by Claude'), 'agentic-sdlc-plan.pdf');
+}
+
+const projCtx = () => ({L:pjLast, name:pj.name, auto:pj.auto, model:{wip:pj.wip, rev:pj.rev, rew:pj.rew}, itemDet, projDet, real:!!activeDet(), file:'agentic-sdlc-plan', sprintName:null, summaryName:'Summary'});
 if(!pj.start) pj.start = defaultStart();
 $('#pjStart').value = pj.start;
 $('#pjStart').addEventListener('change', e => { pj.start = e.target.value || defaultStart(); store.set('pj', {...pj}); });
 $('#pjXlsx').onclick = () => { try{ exportXlsx(); }catch(e){ $('#pjDetNote').textContent = 'Export failed: ' + e.message; } };
 $('#pjMsp').onclick = () => { try{ exportMsp(); }catch(e){ $('#pjDetNote').textContent = 'Export failed: ' + e.message; } };
+$('#pjPdf').onclick = () => { try{ exportProjectPdf(); }catch(e){ $('#pjDetNote').textContent = 'Export failed: ' + e.message; } };
 $('#pjDetGen').onclick = async () => {
-  const key = store.get('key', ''), note = $('#pjDetNote');
-  if(!key){ note.textContent = 'Add your Anthropic key under ⚙ Key first, then try again.'; $('#setBtn').click(); return; }
-  $('#pjDetGen').disabled = true; note.textContent = 'Asking Claude for summaries, acceptance criteria and risks…';
+  const note = $('#pjDetNote');
+  if(!isUnlocked()){ openLearn(0); return; }
+  if(!store.get('key', '')){ note.textContent = 'Add your Anthropic key under ⚙ Key first, then try again.'; $('#setBtn').click(); return; }
+  $('#pjDetGen').disabled = true; note.textContent = 'Asking Claude for summaries, acceptance criteria and risks (one call, capped)…';
   try{
     const list = pj.items.map(i => `${i.id}: ${i.title} (sprint ${i.sprint}, size ${i.size}/5${i.high ? ', high risk' : ''}${i.deps.length ? ', depends on ' + i.deps.join(', ') : ''})`).join('\n');
-    const res = await fetch('https://api.anthropic.com/v1/messages', {method:'POST',
-      headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-sonnet-5-5', max_tokens:3500,
-        system:'You are an experienced delivery lead. Return ONLY valid JSON, no prose and no code fences, shaped as {"items":[{"id":"...","summary":"one sentence","acceptance":["3 to 5 specific, testable criteria"],"risks":["0 to 2 short risks"]}],"project":{"assumptions":["3 to 5"],"risks":["3 to 5"]}}. Use the exact item ids provided and cover every item.',
-        messages:[{role:'user', content:`Project: ${pj.name}\n\nWork items:\n${list}`}]})});
-    const data = await res.json();
-    if(!res.ok) throw new Error((data.error && data.error.message) || ('HTTP ' + res.status));
-    const t = (data.content || []).map(c => c.text || '').join(''), a = t.indexOf('{'), b = t.lastIndexOf('}');
-    if(a < 0 || b < a) throw new Error('No JSON in reply');
+    const r = await claude({maxOut:HARD.outDetails,
+      system:'You are an experienced delivery lead. Return ONLY valid JSON, no prose and no code fences, shaped as {"items":[{"id":"...","summary":"one short sentence","acceptance":["3 to 4 specific, testable criteria, each under 20 words"],"risks":["0 to 1 short risk"]}],"project":{"assumptions":["3 short"],"risks":["3 short"]}}. Use the exact item ids provided and cover every item. Be brief.',
+      user:`Project: ${pj.name}\n\nWork items:\n${list}`});
+    const t = r.text, a = t.indexOf('{'), b = t.lastIndexOf('}');
+    if(a < 0 || b < a) throw new Error('No complete JSON in the reply (the output cap may have cut it). Nothing was retried.');
     const j = JSON.parse(t.slice(a, b + 1)), ids = new Set(pj.items.map(i => i.id)), arr = (v, n, m) => (Array.isArray(v) ? v : []).slice(0, n).map(x => String(x).slice(0, m)), items = {};
     (j.items || []).forEach(o => { if(o && ids.has(o.id)) items[o.id] = {summary:String(o.summary || '').slice(0, 240), acceptance:arr(o.acceptance, 6, 200), risks:arr(o.risks, 3, 200)}; });
     if(!Object.keys(items).length) throw new Error('No usable items in the reply');
     const pr = j.project || {};
     pjDet = {sig:pjSig(), items, project:{assumptions:arr(pr.assumptions, 6, 200), risks:arr(pr.risks, 6, 200)}}; store.set('pjDet', pjDet);
-    note.textContent = `Claude wrote details for ${Object.keys(items).length} of ${pj.items.length} items. Exports now use them.`;
+    note.textContent = `Claude wrote details for ${Object.keys(items).length} of ${pj.items.length} items (${(r.tin + r.tout).toLocaleString()} tokens used). Exports now use them.`;
   }catch(err){ note.textContent = 'Could not generate: ' + err.message; }
   $('#pjDetGen').disabled = false; updDetTag();
 };
 updDetTag();
 
+function refreshKeyUiX(){}
 function refreshKeyUi(){
   const has = !!store.get('key', '');
   $('#setBtn').textContent = has ? '⚙ Key ✓' : '⚙ Key';
@@ -1426,14 +1735,24 @@ function refreshKeyUi(){
 initProjectControls(); renderProject(); refreshKeyUi();
 
 /* ---------- SETTINGS / INSTALL / SW ---------- */
-$('#setBtn').onclick = () => { $('#keyInp').value = store.get('key', ''); $('#keyDlg').showModal(); };
-$('#keySave').onclick = () => { store.set('key', $('#keyInp').value.trim()); $('#keyDlg').close(); refreshKeyUi(); };
+$('#setBtn').onclick = () => {
+  const c = cfg(); $('#keyInp').value = store.get('key', ''); $('#cfgModel').value = c.model; $('#cfgBudget').value = String(c.budget);
+  if(![...$('#cfgBudget').options].some(o => o.value === String(c.budget))) $('#cfgBudget').value = '12000';
+  $('#cfgDaily').value = c.daily; $('#cfgPin').value = c.pin; $('#cfgPout').value = c.pout; updLimitsUi(); $('#keyDlg').showModal();
+};
+$('#keySave').onclick = () => {
+  store.set('key', $('#keyInp').value.trim());
+  store.set('cfg', {model:$('#cfgModel').value, budget:+$('#cfgBudget').value, daily:Math.min(300000, Math.max(5000, +$('#cfgDaily').value || 60000)), pin:$('#cfgPin').value, pout:$('#cfgPout').value});
+  $('#keyDlg').close(); refreshKeyUi(); updLimitsUi(); updStats();
+};
 $('#keyClear').onclick = () => { store.set('key', ''); $('#keyInp').value = ''; refreshKeyUi(); };
 $('#keyClose').onclick = () => $('#keyDlg').close();
 let dp = null;
 addEventListener('beforeinstallprompt', e => { e.preventDefault(); dp = e; $('#installBtn').hidden = false; });
 $('#installBtn').onclick = async () => { if(!dp) return; dp.prompt(); await dp.userChoice; dp = null; $('#installBtn').hidden = true; };
 addEventListener('appinstalled', () => $('#installBtn').hidden = true);
+refreshLockUi(); updLimitsUi();
+if(!store.get('learnSeen', false) && !isUnlocked()) openLearn(0);
 if('serviceWorker' in navigator && location.protocol.startsWith('http')){
   addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 }
