@@ -142,11 +142,27 @@ header h1{font-size:15px}.hbtn{padding:6px 9px}
 <section class="view on" id="v-home">
   <h2>Start here</h2>
   <p class="lead">Agents do the work in each stage of building software. People approve the decisions. This app lets you see that safely, in 4 easy steps.</p>
+  <div class="card"><span class="tag gold">Project manager or lead?</span><p style="margin:8px 0 10px">Read a 1-minute briefing on why agentic delivery matters to you and what to expect.</p><button class="sec" id="pmOpen">Read the PM briefing</button></div>
   <div class="card step"><b>1 · Learn the idea</b><p>5 minutes. Read what each agent does and where a person stays in charge.</p><button class="sec" data-go="stages">Open Stages</button></div>
   <div class="card step"><b>2 · Try one task</b><p>Run one task from plan to release. Review what each agent received and produced, then approve or deny. <span class="tag sim">SIMULATED</span> is free.</p><button class="pri" data-go="sim">Run a task</button></div>
   <div class="card step"><b>3 · Try a whole project</b><p>See how a full backlog flows through the agents and where reviewers become the bottleneck. Export the plan to PDF, Excel or MS Project.</p><button class="sec" data-go="proj">Run a project</button></div>
   <div class="card step"><b>4 · Plan your real rollout</b><p>Write an agent brief, estimate time saved, check readiness, then follow the 90-day playbook.</p><button class="sec" data-go="brief">Open Plan</button></div>
+  <div class="card"><span class="tag real">LIVE MODE · WHAT TO EXPECT</span>
+    <p style="margin:8px 0 4px"><b>It does:</b></p>
+    <ul style="margin:0 0 8px;padding-left:18px;font-size:14px;line-height:1.5"><li>Create short, structured first drafts: plan with acceptance criteria, design notes, build approach, refactor and security review, release notes.</li><li>Pause at each human gate so you can approve, deny or ask for changes.</li><li>Export results to PDF, Excel and MS Project (XML).</li></ul>
+    <p style="margin:0 0 4px"><b>It does not:</b></p>
+    <ul style="margin:0;padding-left:18px;font-size:14px;line-height:1.5"><li>Change your code, run tests or deploy anything. Any code shown is text for a developer to review.</li><li>Replace your team. Outputs are drafts that a person must check.</li><li>Produce long, detailed documents. Outputs are kept short on purpose to limit cost.</li></ul>
+  </div>
   <div class="card"><span class="tag gold">Want real Claude agents?</span><p style="margin:8px 0 0">Add your own API key in <b>⚙ Key</b>. It unlocks after the <b>Lessons</b> quiz, and strict token limits protect you from surprise costs. Everything else works without a key.</p></div>
+  <div class="card"><span class="tag gold">WHERE THIS CAN GO · FULL VERSION</span>
+    <p style="margin:8px 0 6px">This version works today with your own API key. It can be scaled up in stages:</p>
+    <ul style="margin:0 0 8px;padding-left:18px;font-size:14px;line-height:1.5">
+      <li><b>Deeper outputs:</b> optional longer drafts, still within the budget stop.</li>
+      <li><b>Real project context:</b> agents read your requirements document.</li>
+      <li><b>Connected to real tools:</b> read a repository, open pull requests and tickets, save projects for a team.</li>
+    </ul>
+    <p style="margin:0;font-size:13px;color:var(--mute)">The last stage is a bigger redesign: it needs a small backend instead of a single file. The design here, with agents, human gates, cost limits and exports, is built so it can scale to that level.</p>
+  </div>
 </section>
 
 <!-- STAGES -->
@@ -357,7 +373,7 @@ header h1{font-size:15px}.hbtn{padding:6px 9px}
   </details>
 </section>
 
-<footer><div style="color:var(--gold);margin-bottom:4px">Version 7 · Simple navigation, Learn module, cost limits, PDF/Excel/MS Project</div>Designed &amp; Architected by Krishnamurthy Kandregula · Made by Claude</footer>
+<footer><div style="color:var(--gold);margin-bottom:4px">Version 10 · Roadmap note, Live expectations note, PM briefing, simple navigation, Learn module, cost limits, PDF/Excel/MS Project</div>Designed &amp; Architected by Krishnamurthy Kandregula · Made by Claude</footer>
 </main>
 
 <nav id="nav">
@@ -366,6 +382,26 @@ header h1{font-size:15px}.hbtn{padding:6px 9px}
   <button data-g="plan"><span>✎</span>Plan</button>
   <button data-g="guide"><span>❖</span>Guide</button>
 </nav>
+
+<dialog id="pmDlg">
+  <div class="tag gold">Heads-up for project managers &amp; leads</div>
+  <h2 style="font-size:18px;margin:10px 0 6px">Why should you care about agentic SDLC?</h2>
+  <p class="note" style="margin:0 0 10px;font-size:14px">Your projects rarely slow down because people type slowly. They slow down because work <b>waits</b>: for a clear spec, a design decision, a review, a security sign-off, a release slot.</p>
+  <ul style="margin:0 0 10px;padding-left:18px;font-size:14px;line-height:1.5">
+    <li><b>Shorter lead time.</b> Agents do the first draft of each stage, so the next person starts sooner.</li>
+    <li><b>Fewer hand-off delays.</b> Plan, design, build, refactor, security and release stay connected.</li>
+    <li><b>You stay in control.</b> People approve at gates you choose. Nothing ships without a decision.</li>
+    <li><b>New bottleneck to manage:</b> reviewer capacity. This tool shows it before you commit.</li>
+  </ul>
+  <p class="note" style="margin:0 0 6px;font-size:13px"><b>What you can do here</b></p>
+  <ul style="margin:0 0 10px;padding-left:18px;font-size:13px;line-height:1.5">
+    <li>Simulate a task or a whole backlog, free, no key needed.</li>
+    <li>Export a plan (PDF, Excel, MS Project) for your team.</li>
+    <li>Write agent briefs, estimate time saved, check readiness.</li>
+  </ul>
+  <p class="note" style="margin:0 0 12px;font-size:12.5px"><b>Before you begin:</b> numbers in simulations are assumptions you can change, not guarantees. Real Claude agents (Live) use your own API key and cost tokens, so short Lessons and strict limits come first.</p>
+  <div class="row"><button class="pri" id="pmGo">Start with the 4 steps</button><button class="sec" id="pmLearn">Take Lessons</button></div>
+</dialog>
 
 <dialog id="keyDlg">
   <h2 style="font-size:16px">Settings: API key and cost limits</h2>
@@ -1792,7 +1828,18 @@ addEventListener('beforeinstallprompt', e => { e.preventDefault(); dp = e; $('#i
 $('#installBtn').onclick = async () => { if(!dp) return; dp.prompt(); await dp.userChoice; dp = null; $('#installBtn').hidden = true; };
 addEventListener('appinstalled', () => $('#installBtn').hidden = true);
 refreshLockUi(); updLimitsUi();
-if(!store.get('learnSeen', false) && !isUnlocked()) openLearn(0);
+
+/* ---------- PM BRIEFING ---------- */
+(function(){
+  const d = $('#pmDlg');
+  const close = () => { try{ d.close(); }catch(e){} store.set('pmSeen', true); };
+  $('#pmOpen').onclick = () => d.showModal();
+  $('#pmGo').onclick = () => { close(); go('home'); };
+  $('#pmLearn').onclick = () => { close(); openLearn(0); };
+  d.addEventListener('cancel', () => store.set('pmSeen', true));
+})();
+if(!store.get('pmSeen', false)) $('#pmDlg').showModal();
+else if(!store.get('learnSeen', false) && !isUnlocked()) openLearn(0);
 if('serviceWorker' in navigator && location.protocol.startsWith('http')){
   addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 }
