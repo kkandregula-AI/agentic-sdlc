@@ -223,6 +223,7 @@ header h1{font-size:15px}.hbtn{padding:6px 9px}
     <div class="stat"><b id="st2">0m</b><span id="stL2">agent work time</span></div>
     <div class="stat"><b id="st3">0</b><span>human gates passed</span></div>
   </div>
+  <div class="note" id="stCalls" style="display:none;margin:-4px 0 8px"></div>
   <div class="card" id="simSummary" style="display:none;margin-top:12px"></div>
   <div class="card" id="simArtifacts" style="display:none"></div>
   <p class="note" id="simNote"></p>
@@ -230,7 +231,7 @@ header h1{font-size:15px}.hbtn{padding:6px 9px}
 
 <!-- PROJECT -->
 <section class="view" id="v-proj">
-  <h2>Full-project simulator</h2>
+  <h2>Agent console: whole project</h2>
   <p class="lead">Scale from one task to a whole project: a backlog flows through the six agents in parallel, sharing a limited pool of human reviewers. Find your real bottleneck before you commit. <span class="tag sim">SIMULATED</span></p>
   <div class="card">
     <b style="color:var(--champ)">How a project manager uses this</b>
@@ -382,7 +383,7 @@ header h1{font-size:15px}.hbtn{padding:6px 9px}
   </details>
 </section>
 
-<footer><div style="color:var(--gold);margin-bottom:4px">Version 21 · Reviewer-time message, done items shown in the plan, PDF at each gate, fix for empty replies, backlog item outputs with review and sign-off, separate plan per autonomy level, no stray text files on export, stage review and PDFs, file names, start date, fix for cut-off replies, clear MS Project note, clearer API labels, roadmap note, Live expectations note, PM briefing, simple navigation, Learn module, cost limits, PDF/Excel/MS Project</div>Designed &amp; Architected by Krishnamurthy Kandregula · Made by Claude</footer>
+<footer><div style="color:var(--gold);margin-bottom:4px">Version 22 · Whole-project heading, agent calls listed by name, Reviewer-time message, done items shown in the plan, PDF at each gate, fix for empty replies, backlog item outputs with review and sign-off, separate plan per autonomy level, no stray text files on export, stage review and PDFs, file names, start date, fix for cut-off replies, clear MS Project note, clearer API labels, roadmap note, Live expectations note, PM briefing, simple navigation, Learn module, cost limits, PDF/Excel/MS Project</div>Designed &amp; Architected by Krishnamurthy Kandregula · Made by Claude</footer>
 </main>
 
 <nav id="nav">
@@ -1023,6 +1024,8 @@ function updStats(){
   $('#st1').textContent = live ? fmtK(sim.tokens || 0) : fmtH(sim.elapsed || 0);
   $('#st2').textContent = live ? (sim.calls || 0) : (sim.agent || 0) + 'm';
   $('#st3').textContent = sim.gates || 0;
+  const cl = $('#stCalls'), L = sim.callLog || [];
+  if(live && L.length){ cl.style.display = ''; cl.innerHTML = '<b>Agent calls made:</b> ' + L.map((n,i) => (i+1) + '. ' + n).join(' · '); } else { cl.style.display = 'none'; cl.innerHTML = ''; }
 }
 function setAuto(a){
   autoLvl = a;
@@ -1046,7 +1049,7 @@ $('#simAuto').addEventListener('click', e => { const b = e.target.closest('butto
 $('#simFeature').addEventListener('change', resetSim);
 function resetSim(){
   runId++; if(runCtl){ runCtl.abort(); runCtl = null; } if(gateResolve){ gateResolve(null); gateResolve = null; } runBusy = false;
-  sim = {elapsed:0, agent:0, gates:0, denials:0, tokens:0, tin:0, tout:0, calls:0, humanActive:0, task:'', rec:null, outcome:''}; artifacts = [];
+  sim = {elapsed:0, agent:0, gates:0, denials:0, tokens:0, tin:0, tout:0, calls:0, callLog:[], humanActive:0, task:'', rec:null, outcome:''}; artifacts = [];
   $('#simLog').innerHTML = '<div class="m">Press Run to start.</div>';
   $('#gateBox').classList.remove('on'); $('#simSummary').style.display = 'none'; $('#simArtifacts').style.display = 'none';
   $('#simRun').disabled = false; renderChips([]); updStats();
@@ -1226,7 +1229,7 @@ $('#simRun').onclick = async () => {
           addLog(rev ? `  ↺ revision ${rev}: calling Claude…` : '  calling Claude…', 'm');
           const r = await claude({system:stageSystem(s), user:input, maxOut:HARD.outAgent, signal});
           if(my !== runId) return;
-          out = r.text; sim.lastIn = r.tin; sim.calls++; sim.tin += r.tin; sim.tout += r.tout; sim.tokens += r.tin + r.tout; st.tin += r.tin; st.tout += r.tout;
+          out = r.text; sim.lastIn = r.tin; sim.calls++; (sim.callLog = sim.callLog || []).push(s.agent + (rev ? ' (revision ' + rev + ')' : '')); updStats(); sim.tin += r.tin; sim.tout += r.tout; sim.tokens += r.tin + r.tout; st.tin += r.tin; st.tout += r.tout;
         } else {
           if(!rev) for(const line of f.logs[s.id]){ await sleep(500); if(my !== runId) return; addLog('  ' + line, line.startsWith('HIGH') ? 'h' : ''); }
           else { addLog(`  ↺ revision ${rev}: agent revising…`, 'm'); await sleep(700); }
