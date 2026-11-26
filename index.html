@@ -375,7 +375,7 @@ header h1{font-size:15px}.hbtn{padding:6px 9px}
   </details>
 </section>
 
-<footer><div style="color:var(--gold);margin-bottom:4px">Version 12 · Clear MS Project note, clearer API labels, roadmap note, Live expectations note, PM briefing, simple navigation, Learn module, cost limits, PDF/Excel/MS Project</div>Designed &amp; Architected by Krishnamurthy Kandregula · Made by Claude</footer>
+<footer><div style="color:var(--gold);margin-bottom:4px">Version 13 · Fix for cut-off replies, clear MS Project note, clearer API labels, roadmap note, Live expectations note, PM briefing, simple navigation, Learn module, cost limits, PDF/Excel/MS Project</div>Designed &amp; Architected by Krishnamurthy Kandregula · Made by Claude</footer>
 </main>
 
 <nav id="nav">
@@ -791,7 +791,7 @@ const GUARDS = ['Agents run in sandboxed environments','Scoped, short-lived toke
 
 /* ---------- GUARDRAILS (cost control) ---------- */
 const LEARN_VER = 1;
-const HARD = {maxCalls:12, maxRevStage:2, maxRevRun:4, outAgent:450, outBrief:700, outBacklog:1000, outDetails:2200, timeoutMs:60000};
+const HARD = {maxCalls:12, maxRevStage:2, maxRevRun:4, outAgent:450, outBrief:700, outBacklog:1400, outDetails:2200, timeoutMs:60000};
 const MODELS = {economy:{id:'claude-haiku-5-5', label:'Economy (Haiku 5.5)'}, standard:{id:'claude-sonnet-5-5', label:'Standard (Sonnet 5.5)'}};
 const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 function cfg(){
@@ -1382,6 +1382,18 @@ const PRESETS = {
 };
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const toItems = rows => rows.map(r => ({id:r[0], title:r[1], size:r[2], deps:r[3], sprint:r[4], high:!!r[5]}));
+/* Tolerant JSON: keep every COMPLETE {...} at a nesting depth, even if the reply was cut mid-way */
+function looseObjects(t, target){
+  const out = []; let depth = 0, start = -1, inStr = false, esc = false;
+  for(let i = 0; i < t.length; i++){
+    const c = t[i];
+    if(inStr){ if(esc) esc = false; else if(c === '\\') esc = true; else if(c === '"') inStr = false; continue; }
+    if(c === '"'){ inStr = true; continue; }
+    if(c === '{'){ depth++; if(depth === target) start = i; }
+    else if(c === '}'){ if(depth === target && start >= 0){ try{ out.push(JSON.parse(t.slice(start, i + 1))); }catch(e){} start = -1; } depth--; }
+  }
+  return out;
+}
 function sanitizeItems(arr){
   if(!Array.isArray(arr)) return null;
   const raw = arr.slice(0, 12), out = [], seen = new Set();
@@ -1511,13 +1523,16 @@ $('#pjGen').onclick = async () => {
   $('#pjGen').disabled = true; $('#pjGenNote').textContent = 'Asking Claude to draft a backlog (one call, capped)…';
   try{
     const r = await claude({maxOut:HARD.outBacklog,
-      system:'You are an experienced delivery lead. Return ONLY a valid JSON array, no prose and no code fences, of 6 to 10 work items for the described software project. Each item: {"id":"W1","title":"max 5 words","size":1-5 relative complexity,"deps":["ids of EARLIER items it needs"],"sprint":1-4,"high":true only for payments, auth, personal data or safety-critical work}. List items so that dependencies always come first.',
+      system:'You are an experienced delivery lead. Return ONLY a valid JSON array, no prose and no code fences, of 6 to 8 work items for the described software project. Each item: {"id":"W1","title":"max 5 words","size":1-5 relative complexity,"deps":["ids of EARLIER items it needs"],"sprint":1-4,"high":true only for payments, auth, personal data or safety-critical work}. List items so that dependencies always come first.',
       user:d});
-    const t = r.text, a = t.indexOf('['), b = t.lastIndexOf(']'); if(a < 0 || b < a) throw new Error('No complete JSON in the reply (nothing was retried)');
-    const items = sanitizeItems(JSON.parse(t.slice(a, b + 1))); if(!items) throw new Error('Backlog was too small or invalid');
+    let arr = null; const t = r.text, a = t.indexOf('['), b = t.lastIndexOf(']');
+    if(a >= 0 && b > a){ try{ arr = JSON.parse(t.slice(a, b + 1)); }catch(e){ arr = null; } }
+    let partial = false;
+    if(!arr){ arr = looseObjects(t, 1); partial = true; }
+    const items = sanitizeItems(arr); if(!items) throw new Error('Claude\'s reply was cut before 3 complete items. Nothing was retried. Try a shorter description.');
     pj.items = items; pj.name = d.length > 44 ? d.slice(0, 44) + '…' : d;
     $('#pjMode').textContent = 'REAL · CLAUDE API'; $('#pjMode').className = 'tag real';
-    $('#pjGenNote').textContent = `Backlog generated (${(r.tin + r.tout).toLocaleString()} tokens used). Review it under Backlog below, then tune the model.`;
+    $('#pjGenNote').textContent = `Backlog generated (${(r.tin + r.tout).toLocaleString()} tokens used)${partial ? '. The reply was cut at the cost cap, so only the complete items were kept' : ''}. Review it under Backlog below, then tune the model.`;
     renderProject();
   }catch(err){ $('#pjGenNote').textContent = 'Could not generate: ' + err.message; }
   $('#pjGen').disabled = false;
@@ -1792,8 +1807,9 @@ $('#pjDetGen').onclick = async () => {
       system:'You are an experienced delivery lead. Return ONLY valid JSON, no prose and no code fences, shaped as {"items":[{"id":"...","summary":"one short sentence","acceptance":["3 to 4 specific, testable criteria, each under 20 words"],"risks":["0 to 1 short risk"]}],"project":{"assumptions":["3 short"],"risks":["3 short"]}}. Use the exact item ids provided and cover every item. Be brief.',
       user:`Project: ${pj.name}\n\nWork items:\n${list}`});
     const t = r.text, a = t.indexOf('{'), b = t.lastIndexOf('}');
-    if(a < 0 || b < a) throw new Error('No complete JSON in the reply (the output cap may have cut it). Nothing was retried.');
-    const j = JSON.parse(t.slice(a, b + 1)), ids = new Set(pj.items.map(i => i.id)), arr = (v, n, m) => (Array.isArray(v) ? v : []).slice(0, n).map(x => String(x).slice(0, m)), items = {};
+    let j = null; if(a >= 0 && b > a){ try{ j = JSON.parse(t.slice(a, b + 1)); }catch(e){ j = null; } }
+    if(!j) j = {items:looseObjects(t, 2).filter(o => o && o.id && o.summary)};
+    const ids = new Set(pj.items.map(i => i.id)), arr = (v, n, m) => (Array.isArray(v) ? v : []).slice(0, n).map(x => String(x).slice(0, m)), items = {};
     (j.items || []).forEach(o => { if(o && ids.has(o.id)) items[o.id] = {summary:String(o.summary || '').slice(0, 240), acceptance:arr(o.acceptance, 6, 200), risks:arr(o.risks, 3, 200)}; });
     if(!Object.keys(items).length) throw new Error('No usable items in the reply');
     const pr = j.project || {};
