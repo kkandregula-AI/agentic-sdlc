@@ -213,6 +213,8 @@ header h1{font-size:15px}.hbtn{padding:6px 9px}
     <label>Your feedback (required to deny)</label>
     <textarea id="gateFb" style="min-height:60px" placeholder="What should the agent fix or reconsider?"></textarea>
     <div class="row" style="margin-top:10px"><button class="pri" id="gOk">Approve</button><button class="sec" id="gNo">Deny &amp; send back</button><button class="sec" id="gStop">Stop pipeline</button></div>
+    <div class="row" style="margin-top:8px"><button class="sec" id="gPdf">⬇ Save this output as PDF</button></div>
+    <p class="note" style="margin:6px 0 0">Saves the output and input shown here, marked as awaiting your decision. After the run you can also export every stage with its final decision and sign-off.</p>
     <p class="note" id="gateHint"></p>
   </div>
   <div class="stats">
@@ -379,7 +381,7 @@ header h1{font-size:15px}.hbtn{padding:6px 9px}
   </details>
 </section>
 
-<footer><div style="color:var(--gold);margin-bottom:4px">Version 18 · Fix for empty replies, backlog item outputs with review and sign-off, separate plan per autonomy level, no stray text files on export, stage review and PDFs, file names, start date, fix for cut-off replies, clear MS Project note, clearer API labels, roadmap note, Live expectations note, PM briefing, simple navigation, Learn module, cost limits, PDF/Excel/MS Project</div>Designed &amp; Architected by Krishnamurthy Kandregula · Made by Claude</footer>
+<footer><div style="color:var(--gold);margin-bottom:4px">Version 20 · Done items shown in the plan, PDF at each gate, fix for empty replies, backlog item outputs with review and sign-off, separate plan per autonomy level, no stray text files on export, stage review and PDFs, file names, start date, fix for cut-off replies, clear MS Project note, clearer API labels, roadmap note, Live expectations note, PM briefing, simple navigation, Learn module, cost limits, PDF/Excel/MS Project</div>Designed &amp; Architected by Krishnamurthy Kandregula · Made by Claude</footer>
 </main>
 
 <nav id="nav">
@@ -1068,9 +1070,10 @@ function simOutput(s, fk, rev, fb){
     + (rev ? `\n\n--- REVISION ${rev} ---\nReviewer feedback: "${fb}"\nAgent response: updated the relevant section above and re-checked it against the upstream artifacts.` : '')
     + '\n\n(Simulated content for learning. A live agent would tailor this to your real task.)';
 }
+let gateCur = null;
 function askGate(i, input, out, canDeny, escalate, hint){
   return new Promise(res => {
-    gateResolve = res;
+    gateResolve = res; gateCur = {i, input, out};
     $('#gateStage').textContent = STAGES[i].agent;
     $('#gateNote').textContent = escalate ? '⚠ The agent flagged a stop condition (ESCALATE). Review carefully. ' + STAGES[i].gate : STAGES[i].gate;
     $('#gateIn').textContent = input; $('#gateOut').textContent = out; $('#gateFb').value = '';
@@ -1080,6 +1083,13 @@ function askGate(i, input, out, canDeny, escalate, hint){
   });
 }
 function answerGate(v){ if(gateResolve){ const r = gateResolve; gateResolve = null; $('#gateBox').classList.remove('on'); r(v); } }
+$('#gPdf').onclick = () => {
+  if(!gateCur || !sim.rec) return;
+  const {i, input, out} = gateCur, st = sim.rec.stages.find(x => x.id === STAGES[i].id), rev = st ? st.revs : 0, live = sim.rec.mode === 'live';
+  const a = {stage:STAGES[i], gated:true, rev, output:out, userIn:input.split('\n\nUSER\n')[1] || input, signed:null,
+    meta:{project:pj.name, task:sim.task, live, auto:autoLvl, pending:true, decs:st ? st.decisions : []}};
+  saveBlob(makePdf(stageBlocks(a, i), FOOTER), `${runBase()}-${p2(i + 1)}-${slug(STAGES[i].name)}-output${rev ? '-rev' + rev : ''}-pending-review.pdf`);
+};
 $('#gOk').onclick = () => answerGate({action:'ok'});
 $('#gStop').onclick = () => answerGate({action:'stop'});
 $('#gNo').onclick = () => {
@@ -1102,7 +1112,7 @@ function stageBlocks(a, i){
   const R = sim.rec, rs = R ? R.stages.find(s => s.name === a.stage.name) : null;
   const M = a.meta || {project:pj.name, task:sim.task, live:!!(R && R.mode === 'live'), auto:autoLvl, decs:rs ? rs.decisions : []}, B = [];
   B.push({t:'h1', x:`${a.stage.name}: ${a.stage.agent}`});
-  B.push({t:'p', x:`Project: ${M.project}\nTask: ${M.task}\nMode: ${M.live ? 'Live (Claude API)' : 'Simulated'}   Autonomy: ${M.auto}\nGate: ${a.gated ? 'Human-approved at the gate' : 'Auto-passed (no gate at this autonomy level)'}${a.rev ? ', after ' + a.rev + ' revision' + (a.rev > 1 ? 's' : '') : ''}\nReviewer sign-off: ${a.signed ? signTxt(a) : 'NOT YET SIGNED OFF'}`});
+  B.push({t:'p', x:`Project: ${M.project}\nTask: ${M.task}\nMode: ${M.live ? 'Live (Claude API)' : 'Simulated'}   Autonomy: ${M.auto}\nGate: ${M.pending ? 'AWAITING HUMAN DECISION (saved before approve or deny)' : a.gated ? 'Human-approved at the gate' : 'Auto-passed (no gate at this autonomy level)'}${a.rev ? ', after ' + a.rev + ' revision' + (a.rev > 1 ? 's' : '') : ''}\nReviewer sign-off: ${a.signed ? signTxt(a) : 'NOT YET SIGNED OFF'}`});
   if(M.decs.length) B.push({t:'h3', x:'Human decisions at this stage'}, {t:'code', x:M.decs.map(d => `${d.at.toLocaleTimeString()}  ${d.action}${d.feedback ? ' - ' + d.feedback : ''}`).join('\n')});
   B.push({t:'h2', x:'Output'}, {t:'code', x:a.output});
   B.push({t:'h3', x:'Input given to the agent (trimmed)'}, {t:'code', x:a.userIn.slice(0, 900) + (a.userIn.length > 900 ? '\n[...]' : '')});
@@ -1121,7 +1131,7 @@ function exportAllStagesPdf(arts, base){
 function renderArtifacts(){
   const box = $('#simArtifacts'); if(!artifacts.length){ box.style.display = 'none'; return; }
   box.style.display = 'block';
-  const open = new Set(Array.from(box.querySelectorAll('details[open]')).map(d => d.dataset.i));
+  const open = new Set(box.dataset.run === String(runId) ? Array.from(box.querySelectorAll('details[open]')).map(d => d.dataset.i) : []); box.dataset.run = String(runId);
   const keepProj = document.activeElement && document.activeElement.id === 'artProj';
   box.innerHTML = `<b style="color:var(--champ)">Stage outputs · review, sign off and export</b>
     ${sim.itemRef ? `<div class="row" style="margin:8px 0 0"><button class="sec" id="artBack">← Back to backlog item ${esc(sim.itemRef.id)}</button></div><p class="note" style="margin:6px 0 0">Saved to backlog item ${esc(sim.itemRef.id)}: you can review it there any time.</p>` : ''}
@@ -1555,8 +1565,8 @@ function renderProject(){
   const mk = r.makespan;
   $('#pjGantt').innerHTML = r.items.map(it => `<div class="grow"><span class="glbl" title="${esc(it.title)}">${esc(it.id)}</span><div class="gtrack">${it.segs.map(g => `<div class="gseg ${g.t}" title="${esc(STAGES.find(x => x.id === g.s).name)} · ${g.t}" style="left:${g.a / mk * 100}%;width:${Math.max(0.3, (g.b - g.a) / mk * 100)}%;${g.t === 'agent' ? 'background:' + STAGES.find(x => x.id === g.s).color : ''}"></div>`).join('')}</div></div>`).join('');
   $('#pjAxis').innerHTML = [0, .25, .5, .75, 1].map(f => `<span>${f === 0 ? 'Day 0' : (mk * f * buf / DAY).toFixed(1)}</span>`).join('');
-  const sp = {}; r.items.forEach(it => { (sp[it.sprint] = sp[it.sprint] || {n:0, end:0}); sp[it.sprint].n++; sp[it.sprint].end = Math.max(sp[it.sprint].end, it.finish); });
-  $('#pjSprints').innerHTML = Object.keys(sp).sort().map(k => `<div class="sprint"><span>Sprint ${k} · ${sp[k].n} items</span><span style="font-family:var(--mono);color:var(--champ)">done by day ${(sp[k].end * buf / DAY).toFixed(1)}</span></div>`).join('');
+  const sp = {}; r.items.forEach(it => { (sp[it.sprint] = sp[it.sprint] || {n:0, end:0, d:0}); sp[it.sprint].n++; if(itemStatus(it).done) sp[it.sprint].d++; sp[it.sprint].end = Math.max(sp[it.sprint].end, it.finish); });
+  $('#pjSprints').innerHTML = Object.keys(sp).sort().map(k => `<div class="sprint"><span data-sp="${k}" data-n="${sp[k].n}">Sprint ${k} · ${sp[k].n} items${sp[k].d ? ' · <b style="color:var(--green)">' + sp[k].d + ' done</b>' : ''}</span><span style="font-family:var(--mono);color:var(--champ)">done by day ${(sp[k].end * buf / DAY).toFixed(1)}</span></div>`).join('');
   renderBacklog(r.items);
   $('#pjCount').textContent = r.items.length; $('#pjName').textContent = 'Current project: ' + pj.name; { const ni = $('#pjNameInp'); if(ni && document.activeElement !== ni) ni.value = pj.name; }
   $('#pjWipV').textContent = pj.wip; $('#pjRevV').textContent = pj.rev; $('#pjRewV').textContent = pj.rew; $('#pjEngV').textContent = pj.eng;
@@ -1681,10 +1691,10 @@ function buildPlan(ctx){
   const sprints = [...new Set(r.items.map(i => i.sprint))].sort((a, b) => a - b);
   sprints.forEach((sp, si) => {
     const its = r.items.filter(i => i.sprint === sp);
-    mk({wbs:String(si + 1), level:1, name:ctx.sprintName ? ctx.sprintName(sp) : `Sprint ${sp}`, type:'Sprint', summary:true, s:Math.min(...its.map(i => i.segs[0].a)), e:Math.max(...its.map(i => i.finish)), res:'', notes:`${its.length} work items`});
+    mk({items:its.map(i => i.id), wbs:String(si + 1), level:1, name:ctx.sprintName ? ctx.sprintName(sp) : `Sprint ${sp}`, type:'Sprint', summary:true, s:Math.min(...its.map(i => i.segs[0].a)), e:Math.max(...its.map(i => i.finish)), res:'', notes:`${its.length} work items`});
     its.forEach((it, ii) => {
       const d = ctx.itemDet(it);
-      mk({wbs:`${si + 1}.${ii + 1}`, level:2, name:`${it.id} · ${it.title}`, type:'Work item', summary:true, s:it.segs[0].a, e:it.finish, res:'', risk:it.high ? 'High' : '',
+      mk({itemId:it.id, wbs:`${si + 1}.${ii + 1}`, level:2, name:`${it.id} · ${it.title}`, type:'Work item', summary:true, s:it.segs[0].a, e:it.finish, res:'', risk:it.high ? 'High' : '',
         notes:`${d.summary}\nACCEPTANCE CRITERIA\n` + d.acceptance.map((a, k) => `${k + 1}. ${a}`).join('\n') + (d.risks.length ? '\nRISKS\n' + d.risks.map(x => '- ' + x).join('\n') : '')});
       let prev = null, k = 0; const seen = {};
       it.segs.forEach(g => {
@@ -1692,8 +1702,8 @@ function buildPlan(ctx){
         const s = STAGES.find(x => x.id === g.s); k++; let row;
         if(g.t === 'agent'){
           seen[g.s] = (seen[g.s] || 0) + 1;
-          row = mk({wbs:`${si + 1}.${ii + 1}.${k}`, level:3, name:`${s.name}: ${s.agent}` + (seen[g.s] > 1 ? ' (rework)' : ''), type:'Agent work', summary:false, s:g.a, e:g.b, res:s.agent, notes:`Guardrail: ${s.guard}\nOutput: ${s.output}`});
-        } else row = mk({wbs:`${si + 1}.${ii + 1}.${k}`, level:3, name:`${s.name}: human review`, type:'Human review', summary:false, s:g.a, e:g.b, res:`Reviewer ${(g.rv || 0) + 1}`, notes:`Gate: ${s.gate}`});
+          row = mk({itemId:it.id, stage:s.name, wbs:`${si + 1}.${ii + 1}.${k}`, level:3, name:`${s.name}: ${s.agent}` + (seen[g.s] > 1 ? ' (rework)' : ''), type:'Agent work', summary:false, s:g.a, e:g.b, res:s.agent, notes:`Guardrail: ${s.guard}\nOutput: ${s.output}`});
+        } else row = mk({itemId:it.id, stage:s.name, wbs:`${si + 1}.${ii + 1}.${k}`, level:3, name:`${s.name}: human review`, type:'Human review', summary:false, s:g.a, e:g.b, res:`Reviewer ${(g.rv || 0) + 1}`, notes:`Gate: ${s.gate}`});
         if(prev) row.preds.push(prev); else row.predItems = it.deps;
         prev = row.uid;
       });
@@ -1705,7 +1715,19 @@ function buildPlan(ctx){
     mk({wbs:String(sprints.length + 1), level:1, name:`Integration & contingency buffer (${pj.buf}%)`, type:'Buffer', summary:false, s:r.makespan, e:total, res:'', preds:[lastUid[li.id]], notes:'Allowance for integration, environment issues and rework outside the simulated gates.'});
   }
   rows.forEach(w => w.predItems.forEach(d => { if(lastUid[d]) w.preds.push(lastUid[d]); }));
-  const root = {uid:0, wbs:'0', level:0, name:ctx.name, type:'Project', summary:true, s:0, e:total, res:'', preds:[], predItems:[], notes:'Agentic SDLC plan generated from a simulation.'};
+  if(ctx.status){
+    const st = {}; r.items.forEach(i => { st[i.id] = ctx.status(i); });
+    const lab = p => p >= 100 ? 'Done' : p > 0 ? 'In progress' : 'Not started', avg = ids => ids.length ? Math.round(ids.reduce((a, id) => a + st[id].pct, 0) / ids.length) : 0;
+    rows.forEach(w => {
+      if(w.itemId && w.stage){ w.pct = st[w.itemId].names.has(w.stage) ? 100 : 0; w.status = w.pct ? 'Done' : 'Not started'; }
+      else if(w.itemId){ w.pct = st[w.itemId].pct; w.status = st[w.itemId].done ? 'Done' : st[w.itemId].state; }
+      else if(w.items){ w.pct = avg(w.items); w.status = lab(w.pct); }
+    });
+    const all = r.items.map(i => i.id), allPct = avg(all);
+    rows.forEach(w => { if(w.type === 'Buffer'){ w.pct = allPct >= 100 ? 100 : 0; w.status = lab(w.pct); } });
+    var rootPct = allPct;
+  }
+  const root = {pct:ctx.status ? rootPct : undefined, status:ctx.status ? (rootPct >= 100 ? 'Done' : rootPct > 0 ? 'In progress' : 'Not started') : undefined, uid:0, wbs:'0', level:0, name:ctx.name, type:'Project', summary:true, s:0, e:total, res:'', preds:[], predItems:[], notes:'Agentic SDLC plan generated from a simulation.'};
   return {rows:[root, ...rows], start, total};
 }
 
@@ -1763,21 +1785,23 @@ function planSheets(ctx){
     ['Parallel work items', ctx.model.wip], ['Human reviewers', ctx.model.rev], ['Rework rate (%)', ctx.model.rew],
     ['Manual estimate (working days)', Math.round(L.manDays * 10) / 10], ['With agents (working days)', Math.round(L.agDays * 10) / 10], ['Faster than manual (%)', L.pct],
     ['Reviewer load (%)', Math.round(L.util * 100)], ['Likely bottleneck', L.verdict],
+    ...(ctx.status ? [['Work items done', `${L.r.items.filter(i => ctx.status(i).done).length} of ${L.r.items.length} (every stage output reviewed and signed off)`], ['Overall progress (%)', P.rows[0].pct]] : []),
     ['Schedule source', 'Simulation (illustrative, not a commitment)'], ['Task content source', real ? 'Claude API (real)' : 'Template'],
     ['Generated', new Date().toLocaleString()], ['Generated by', 'Agentic SDLC Lab · Designed & Architected by Krishnamurthy Kandregula · Made by Claude']];
-  const plan = [['WBS', 'Task', 'Type', 'Resource', 'Start', 'Finish', 'Duration (h)', 'Predecessors', 'Risk', 'Details']].concat(P.rows.map(r =>
-    [r.wbs, '    '.repeat(Math.max(0, r.level - 1)) + r.name, r.type, r.res, D(r.s, false), D(r.e, true), h(r.e - r.s), r.preds.map(u => wbsOf[u]).join(', '), r.risk || '', r.notes || '']));
-  const backlog = [['ID', 'Work item', 'Sprint', 'Size (1-5)', 'High risk', 'Depends on', 'Agent stages', 'Summary', 'Acceptance criteria', 'Risks']].concat(L.r.items.map(it => {
-    const d = ctx.itemDet(it);
-    return [it.id, it.title, it.sprint, it.size, it.high ? 'Yes' : 'No', it.deps.join(', '), it.stages.map(i => STAGES[i].name).join(' > '), d.summary, d.acceptance.map((a, k) => `${k + 1}. ${a}`).join('\n'), d.risks.join('\n')];
+  const sx = !!ctx.status;
+  const plan = [['WBS', 'Task', 'Type', 'Resource', 'Start', 'Finish', 'Duration (h)'].concat(sx ? ['Status', '% complete'] : [], ['Predecessors', 'Risk', 'Details'])].concat(P.rows.map(r =>
+    [r.wbs, '    '.repeat(Math.max(0, r.level - 1)) + r.name, r.type, r.res, D(r.s, false), D(r.e, true), h(r.e - r.s)].concat(sx ? [r.status || '', r.pct == null ? '' : r.pct] : [], [r.preds.map(u => wbsOf[u]).join(', '), r.risk || '', r.notes || ''])));
+  const backlog = [['ID', 'Work item', 'Sprint', 'Size (1-5)', 'High risk', 'Depends on', 'Agent stages'].concat(sx ? ['Status', '% complete', 'Stages signed off', 'Signed off by'] : [], ['Summary', 'Acceptance criteria', 'Risks'])].concat(L.r.items.map(it => {
+    const d = ctx.itemDet(it), q = sx ? ctx.status(it) : null;
+    return [it.id, it.title, it.sprint, it.size, it.high ? 'Yes' : 'No', it.deps.join(', '), it.stages.map(i => STAGES[i].name).join(' > ')].concat(sx ? [q.done ? 'Done' : q.state, q.pct, `${q.n} of ${q.total}`, q.by.join(', ')] : [], [d.summary, d.acceptance.map((a, k) => `${k + 1}. ${a}`).join('\n'), d.risks.join('\n')]);
   }));
   const agents = [['Stage', 'Agent', 'What it does', 'Human gate', 'Guardrail', 'Tools', 'Stop and escalate when', 'Output', 'Measure']].concat(STAGES.map(s =>
     [s.name, s.agent, s.does.join('; '), s.gate, s.guard, s.tools, s.stop, s.output, s.metric]));
   const ra = [['Type', 'Text']].concat(pd.assumptions.map(t => ['Assumption', t]), pd.risks.map(t => ['Risk', t]));
   return [
     {name:ctx.summaryName || 'Summary', rows:summary, widths:[30, 80]},
-    {name:'Plan (WBS)', rows:plan, widths:[10, 48, 14, 24, 17, 17, 12, 14, 8, 70]},
-    {name:'Backlog & criteria', rows:backlog, widths:[7, 34, 8, 9, 9, 12, 34, 44, 60, 40]},
+    {name:'Plan (WBS)', rows:plan, widths:sx ? [10, 48, 14, 24, 17, 17, 12, 13, 11, 14, 8, 70] : [10, 48, 14, 24, 17, 17, 12, 14, 8, 70]},
+    {name:'Backlog & criteria', rows:backlog, widths:sx ? [7, 34, 8, 9, 9, 12, 34, 13, 11, 12, 20, 44, 60, 40] : [7, 34, 8, 9, 9, 12, 34, 44, 60, 40]},
     {name:'Agents & gates', rows:agents, widths:[10, 24, 50, 40, 40, 36, 36, 36, 30]},
     {name:'Risks & assumptions', rows:ra, widths:[14, 90]}];
 }
@@ -1789,7 +1813,7 @@ function exportMsp(ctx){
   const wd = (t, w) => `<WeekDay><DayType>${t}</DayType><DayWorking>${w}</DayWorking>${w ? '<WorkingTimes><WorkingTime><FromTime>09:00:00</FromTime><ToTime>17:00:00</ToTime></WorkingTime></WorkingTimes>' : ''}</WeekDay>`;
   const tasks = P.rows.map(r => {
     const m = Math.round(r.e - r.s);
-    return `<Task><UID>${r.uid}</UID><ID>${r.uid}</ID><Name>${xs(r.name)}</Name><Type>1</Type><IsNull>0</IsNull><WBS>${xs(r.wbs)}</WBS><OutlineNumber>${xs(r.wbs)}</OutlineNumber><OutlineLevel>${r.level}</OutlineLevel><Priority>500</Priority><Start>${isoL(D(r.s, false))}</Start><Finish>${isoL(D(r.e, true))}</Finish><Duration>${dur(m)}</Duration><DurationFormat>5</DurationFormat><Milestone>0</Milestone><Summary>${r.summary ? 1 : 0}</Summary>${r.summary ? '' : `<ConstraintType>4</ConstraintType><ConstraintDate>${isoL(D(r.s, false))}</ConstraintDate>`}<Notes>${xs(r.notes || '')}</Notes>${r.preds.map(u => `<PredecessorLink><PredecessorUID>${u}</PredecessorUID><Type>1</Type><CrossProject>0</CrossProject><LinkLag>0</LinkLag><LagFormat>7</LagFormat></PredecessorLink>`).join('')}</Task>`;
+    return `<Task><UID>${r.uid}</UID><ID>${r.uid}</ID><Name>${xs(r.name)}</Name><Type>1</Type><IsNull>0</IsNull><WBS>${xs(r.wbs)}</WBS><OutlineNumber>${xs(r.wbs)}</OutlineNumber><OutlineLevel>${r.level}</OutlineLevel><Priority>500</Priority><Start>${isoL(D(r.s, false))}</Start><Finish>${isoL(D(r.e, true))}</Finish><Duration>${dur(m)}</Duration><DurationFormat>5</DurationFormat><Milestone>0</Milestone><Summary>${r.summary ? 1 : 0}</Summary>${r.pct == null ? '' : `<PercentComplete>${r.pct}</PercentComplete>`}${r.summary ? '' : `<ConstraintType>4</ConstraintType><ConstraintDate>${isoL(D(r.s, false))}</ConstraintDate>`}<Notes>${xs(r.notes || '')}</Notes>${r.preds.map(u => `<PredecessorLink><PredecessorUID>${u}</PredecessorUID><Type>1</Type><CrossProject>0</CrossProject><LinkLag>0</LinkLag><LagFormat>7</LagFormat></PredecessorLink>`).join('')}</Task>`;
   }).join('');
   const res = resNames.map(n => `<Resource><UID>${ruid[n]}</UID><ID>${ruid[n]}</ID><Name>${xs(n)}</Name><Type>1</Type><IsNull>0</IsNull><Initials>${xs(n.split(/\s+/).map(w => w[0]).join('').slice(0, 3))}</Initials><Group>${n.startsWith('Reviewer') ? 'Human reviewers' : 'AI agents'}</Group><MaxUnits>1</MaxUnits></Resource>`).join('');
   let au = 0; const asg = P.rows.filter(r => r.res).map(r => `<Assignment><UID>${++au}</UID><TaskUID>${r.uid}</TaskUID><ResourceUID>${ruid[r.res]}</ResourceUID><Units>1</Units></Assignment>`).join('');
@@ -1858,12 +1882,17 @@ function exportProjectPdf(){
   const D = (m, e) => atWork(P.start, m, e), fm = d => `${p2(d.getMonth() + 1)}-${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}`, fday = d => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
   B.push({t:'h1', x:'Agentic SDLC project plan'}, {t:'p', x:ctx.name});
   B.push({t:'p', x:`Planned start: ${fday(D(0, false))}   Planned finish (incl. ${pj.buf}% buffer): ${fday(D(P.total, true))}\nOperating model: ${ctx.auto} autonomy, ${pj.wip} items in parallel, ${pj.rev} reviewers, ${pj.rew}% rework\nManual estimate: ${L.manDays.toFixed(1)} working days   With agents: ${L.agDays.toFixed(1)} working days (${L.pct}% faster)\nReviewer load: ${Math.round(L.util * 100)}%   Likely bottleneck: ${L.verdict}\nContent source: ${ctx.real ? 'Claude API (real)' : 'Template'}   Schedule source: simulation (not a commitment)`});
+  if(ctx.status){
+    const q = L.r.items.map(i => [i, ctx.status(i)]);
+    B.push({t:'h2', x:`Progress: ${q.filter(x => x[1].done).length} of ${q.length} work items done (overall ${P.rows[0].pct}%)`});
+    B.push({t:'code', x:q.map(([i, v]) => `${i.id.padEnd(4)} ${(v.done ? 'DONE' : v.state).padEnd(12)} ${String(v.pct).padStart(3)}%  ${v.n} of ${v.total} stages signed off${v.by.length ? ' (' + v.by.join(', ') + ')' : ''}  ${i.title}`.slice(0, 110)).join('\n')});
+  }
   B.push({t:'h2', x:'Schedule'});
   B.push({t:'code', x:'WBS     Task                                      Start        Finish       Hours\n' + P.rows.map(r => `${r.wbs.padEnd(7)} ${('  '.repeat(Math.max(0, r.level - 1)) + r.name).slice(0, 40).padEnd(41)} ${fm(D(r.s, false))}  ${fm(D(r.e, true))}  ${(Math.round((r.e - r.s) / 6) / 10).toFixed(1).padStart(5)}`).join('\n')});
   B.push({t:'h2', x:'Work items and acceptance criteria'});
   L.r.items.forEach(it => {
     const d = ctx.itemDet(it);
-    B.push({t:'h3', x:`${it.id} - ${it.title} (sprint ${it.sprint}, size ${it.size}/5${it.high ? ', HIGH RISK' : ''})`}, {t:'p', x:d.summary});
+    B.push({t:'h3', x:`${it.id} - ${it.title} (sprint ${it.sprint}, size ${it.size}/5${it.high ? ', HIGH RISK' : ''})${ctx.status ? ' [' + (ctx.status(it).done ? 'DONE' : ctx.status(it).state.toUpperCase()) + ']' : ''}`}, {t:'p', x:d.summary});
     B.push({t:'code', x:d.acceptance.map((a, k) => `${k + 1}. ${a}`).join('\n') + (d.risks.length ? '\nRisks: ' + d.risks.join('; ') : '')});
   });
   B.push({t:'h2', x:'Assumptions'}, {t:'code', x:pd.assumptions.map(a => '- ' + a).join('\n')}, {t:'h2', x:'Risks'}, {t:'code', x:pd.risks.map(a => '- ' + a).join('\n')});
@@ -1891,6 +1920,13 @@ function itemSimArt(it, d){
     refactor:`REFACTOR NOTES: ${it.title}\n\n- Extract any duplicated logic found in the touched files into a shared helper.\n- Rename unclear identifiers; no behaviour change.\n- Run the full test suite before and after: results must match.`,
     security:`SECURITY REVIEW: ${it.title}\n\nChecklist\n- Input validation and output encoding: planned\n- Authentication and authorisation on every new path: ${it.high ? 'REQUIRES owner review' : 'standard'}\n- Secrets and personal data not logged: checked\n- Dependencies scanned: clean in this simulation\n\n${it.high ? 'HIGH RISK: do not release without security owner sign-off.' : 'No blocking findings.'}`,
     ship:`RELEASE NOTES: ${it.title}\n\nWhat changed: ${d.summary}\n\nRollout\n- Enable the flag for 5% of users, watch errors and latency, then ramp.\n\nRollback\n- Switch the flag off; no data migration to reverse.`};
+}
+function itemStatus(it){
+  const run = getRuns()[it.id], total = STAGES.length;
+  if(!run) return {state:'Not started', pct:0, n:0, total, by:[], names:new Set(), done:false};
+  const sg = run.stages.filter(x => x.signed), names = new Set(sg.map(x => x.name)), n = names.size;
+  const done = run.outcome === 'complete' && run.stages.length === total && n === total;
+  return {state:done ? 'Done' : 'In review', pct:Math.round(100 * n / total), n, total, by:[...new Set(sg.map(x => x.signed.by))], names, done};
 }
 function savedToArt(run, st){
   return {stage:{name:st.name, agent:st.agent}, gated:st.gated, rev:st.rev, output:st.output, userIn:st.input, signed:st.signed ? {by:st.signed.by, at:new Date(st.signed.at)} : null,
@@ -1922,10 +1958,11 @@ function renderBacklog(items){
   const open = new Set(Array.from(box.querySelectorAll('details[open]')).map(d => d.dataset.id || d.dataset.k));
   let runs = {}; try{ runs = getRuns(); }catch(e){}
   box.innerHTML = `<label>Reviewer name</label><input id="blReviewer" maxlength="40" placeholder="Your name" value="${esc(store.get('reviewer', ''))}">
-    <p class="note" style="margin:8px 0">Tap an item to see its acceptance criteria, run it through the agents, then review and sign off the output of each stage.</p>`
+    <p class="note" style="margin:8px 0"><b>${items.filter(i => itemStatus(i).done).length} of ${items.length} items done.</b> An item is done when all six stage outputs are reviewed and signed off. Done items show as done in the project plan and exports.</p>
+    <p class="note" style="margin:0 0 8px">Tap an item to see its acceptance criteria, run it through the agents, then review and sign off the output of each stage.</p>`
     + items.map(it => {
       const d = itemDet(it), run = runs[it.id], n = run ? run.stages.filter(s => s.signed).length : 0;
-      const chip = !run ? '<span class="tag">not run</span>' : `<span class="tag ${n === run.stages.length ? 'real' : ''}">${n} of ${run.stages.length} signed off</span>`;
+      const sx = itemStatus(it), chip = !run ? '<span class="tag">not run</span>' : sx.done ? '<span class="tag real">✓ done</span>' : `<span class="tag">${n} of ${run.stages.length} signed off</span>`;
       return `<details class="blx" data-id="${esc(it.id)}" ${open.has(it.id) ? 'open' : ''}><summary><code style="color:var(--gold)">${esc(it.id)}</code> ${esc(it.title)} ${it.high ? '<span class="tag" style="color:var(--red);border-color:#6b2f2f">high risk</span>' : ''} ${chip}</summary>
         <p class="note" style="margin:6px 0">Sprint ${it.sprint} · size ${it.size}/5 · depends on ${it.deps.length ? esc(it.deps.join(', ')) : 'nothing'}</p>
         <label>Summary</label><p style="margin:4px 0;font-size:14px">${esc(d.summary)}</p>
@@ -1935,6 +1972,7 @@ function renderBacklog(items){
         ${run ? itemRunHtml(it, run) : ''}</details>`;
     }).join('');
   box.querySelectorAll('details.stg').forEach(d => { if(open.has(d.dataset.k)) d.open = true; });
+  try{ document.querySelectorAll('#pjSprints [data-sp]').forEach(el => { const k = el.dataset.sp, d = items.filter(i => String(i.sprint) === k && itemStatus(i).done).length; el.innerHTML = `Sprint ${k} · ${el.dataset.n} items` + (d ? ` · <b style="color:var(--green)">${d} done</b>` : ''); }); }catch(e){}
 }
 function runItemPipeline(id, mode){
   const it = pj.items.find(x => x.id === id); if(!it) return;
@@ -1967,7 +2005,7 @@ $('#pjBacklog').addEventListener('change', e => {
   renderBacklog(pj.items);
 });
 
-const projCtx = () => ({L:pjLast, name:pj.name, auto:pj.auto, model:{wip:pj.wip, rev:pj.rev, rew:pj.rew}, itemDet, projDet, real:!!activeDet(), file:projPrefix() + '-project-plan-' + pj.auto, sprintName:null, summaryName:'Summary'});
+const projCtx = () => ({L:pjLast, name:pj.name, auto:pj.auto, model:{wip:pj.wip, rev:pj.rev, rew:pj.rew}, itemDet, projDet, status:itemStatus, real:!!activeDet(), file:projPrefix() + '-project-plan-' + pj.auto, sprintName:null, summaryName:'Summary'});
 if(!pj.startUser || !pj.start) pj.start = defaultStart();
 $('#pjStart').value = pj.start;
 $('#pjNameInp').addEventListener('change', e => { const v = e.target.value.trim(); if(v){ pj.name = v.slice(0, 60); store.set('pj', {...pj}); renderProject(); } });
