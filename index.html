@@ -352,6 +352,15 @@ header h1{font-size:15px}.hbtn{padding:6px 9px}
 </section>
 
 <!-- PLAYBOOK -->
+<section class="view" id="v-compare">
+  <h2>Typical vs Agentic</h2>
+  <p class="lead">The stages are the same. What changes is who does the work, and how fast it moves between stages.</p>
+  <div class="card" style="border-color:var(--gold)"><b style="color:var(--champ)">The big differences</b>
+    <ul style="margin:8px 0 0;padding-left:18px"><li><b>Who works:</b> people do the work in each stage, or an agent drafts it and people decide.</li><li><b>Flow:</b> one long hand-off line, or stages that overlap and loop back with feedback.</li><li><b>Checks:</b> security and testing at the end, or inside every stage.</li><li><b>Oversight:</b> informal, or explicit human gates you choose (all six, four, or release only).</li><li><b>Bottleneck:</b> typing and hand-offs, or reviewer time.</li></ul></div>
+  <div class="card"><b style="color:var(--champ)">Plan</b><p style="margin:8px 0 4px"><span class="tag">TYPICAL</span> Analysts write specs by hand; estimates and grooming take days.</p><p style="margin:6px 0 0"><span class="tag gold">AGENTIC</span> Planning Agent drafts specs and acceptance criteria in minutes; a person decides scope.</p></div><div class="card"><b style="color:var(--champ)">Design</b><p style="margin:8px 0 4px"><span class="tag">TYPICAL</span> Architects draft options in meetings and documents; decisions wait for slots.</p><p style="margin:6px 0 0"><span class="tag gold">AGENTIC</span> Architecture Agent drafts options, trade-offs and API contracts; a person picks.</p></div><div class="card"><b style="color:var(--champ)">Build</b><p style="margin:8px 0 4px"><span class="tag">TYPICAL</span> Developers write all code and tests by hand.</p><p style="margin:6px 0 0"><span class="tag gold">AGENTIC</span> Coding Agent proposes small, tested changes; a person reviews the code.</p></div><div class="card"><b style="color:var(--champ)">Refactor</b><p style="margin:8px 0 4px"><span class="tag">TYPICAL</span> Squeezed in when there is spare time, so tech debt piles up.</p><p style="margin:6px 0 0"><span class="tag gold">AGENTIC</span> Refactoring Agent cleans up routinely while tests prove behavior is unchanged.</p></div><div class="card"><b style="color:var(--champ)">Secure</b><p style="margin:8px 0 4px"><span class="tag">TYPICAL</span> Security review and testing often come late, when fixes cost more.</p><p style="margin:6px 0 0"><span class="tag gold">AGENTIC</span> Security Validation Agent scans and triages inside every change; a person signs off on risk.</p></div><div class="card"><b style="color:var(--champ)">Ship</b><p style="margin:8px 0 4px"><span class="tag">TYPICAL</span> Manual release notes, checklists and rollout; rollback plans are ad hoc.</p><p style="margin:6px 0 0"><span class="tag gold">AGENTIC</span> Release & Ops Agent drafts notes, canary checks and rollback plans; a person approves release.</p></div>
+  <div class="card"><span class="tag gold">Core principle</span><p style="margin:8px 0 0">Agents own the <b>work</b>. Humans own the <b>decisions</b>. Agents run fast, so plan reviewer time.</p></div>
+</section>
+
 <section class="view" id="v-play">
   <h2>Rollout playbook</h2>
   <p class="lead">A practical 90-day path, guardrails to tick off, and the metrics that tell you it is working.</p>
@@ -383,7 +392,7 @@ header h1{font-size:15px}.hbtn{padding:6px 9px}
   </details>
 </section>
 
-<footer><div style="color:var(--gold);margin-bottom:4px">Version 22 · Whole-project heading, agent calls listed by name, Reviewer-time message, done items shown in the plan, PDF at each gate, fix for empty replies, backlog item outputs with review and sign-off, separate plan per autonomy level, no stray text files on export, stage review and PDFs, file names, start date, fix for cut-off replies, clear MS Project note, clearer API labels, roadmap note, Live expectations note, PM briefing, simple navigation, Learn module, cost limits, PDF/Excel/MS Project</div>Designed &amp; Architected by Krishnamurthy Kandregula · Made by Claude</footer>
+<footer><div style="color:var(--gold);margin-bottom:4px">Version 23 · Typical vs Agentic comparison in Guide, Whole-project heading, agent calls listed by name, Reviewer-time message, done items shown in the plan, PDF at each gate, fix for empty replies, backlog item outputs with review and sign-off, separate plan per autonomy level, no stray text files on export, stage review and PDFs, file names, start date, fix for cut-off replies, clear MS Project note, clearer API labels, roadmap note, Live expectations note, PM briefing, simple navigation, Learn module, cost limits, PDF/Excel/MS Project</div>Designed &amp; Architected by Krishnamurthy Kandregula · Made by Claude</footer>
 </main>
 
 <nav id="nav">
@@ -959,7 +968,7 @@ const GROUPS = {
   home:  {views:['home']},
   try:   {views:['sim','proj'],  labels:['One task','Whole project']},
   plan:  {views:['brief','roi','ready'], labels:['Agent brief','Time saved','Readiness']},
-  guide: {views:['stages','play'], labels:['The 6 stages','90-day playbook']}
+  guide: {views:['stages','compare','play'], labels:['The 6 stages','Typical vs Agentic','90-day playbook']}
 };
 const VIEW_GROUP = {};
 Object.keys(GROUPS).forEach(g => GROUPS[g].views.forEach(v => VIEW_GROUP[v] = g));
