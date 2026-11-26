@@ -234,20 +234,24 @@ header h1{font-size:15px}.hbtn{padding:6px 9px}
   <h2>Agent console: whole project</h2>
   <p class="lead">Scale from one task to a whole project: a backlog flows through the six agents in parallel, sharing a limited pool of human reviewers. Find your real bottleneck before you commit. <span class="tag sim">SIMULATED</span></p>
   <div class="card">
-    <b style="color:var(--champ)">How a project manager uses this</b>
+    <details style="margin:0;padding:10px 12px"><summary>How a project manager uses this (tap to read)</summary>
     <ol class="how">
       <li><b>Load or generate a backlog.</b> Option A: pick a sample project (free). Option B: describe your own project and let real Claude draft the backlog (needs your API key under ⚙ Key).</li>
       <li><b>Tune the operating model.</b> Change autonomy, parallel items, reviewers and rework. Watch the timeline to see what really slows delivery.</li>
       <li><b>Generate agent briefs.</b> In <b>Plan → Agent brief</b>, pick a backlog item to prefill a brief for any stage.</li>
       <li><b>Take the plan to your tools.</b> Copy the project plan and run the agents in your own tooling (for example Claude Code with your CI). The gates you chose become your review rules.</li>
-    </ol>
-    <div class="row"><span class="tag" id="pjKey"></span></div>
+    </ol></details>
+    <div class="row" style="margin-top:10px"><span class="tag" id="pjKey"></span></div>
     <p class="note">Simulation numbers are adjustable assumptions. Real Claude only drafts text for review: it does not run agents on your code or connect to your repository.</p>
   </div>
+  <div class="card" style="border-color:var(--gold)"><b style="color:var(--champ)">Just want to try it? Do 3 things:</b><ol class="how" style="margin:8px 0 0"><li><b>Step 1:</b> choose a backlog below. Pick <b>Option A</b> (a sample project, free). <b>Option B</b> is optional and only for your own project.</li><li><b>Step 2:</b> change the autonomy level and sliders.</li><li><b>Step 3:</b> scroll down. The results, timeline and backlog update by themselves. There is no Run button.</li></ol></div>
   <div class="card">
     <div class="dim" id="pjName"></div>
+    <b style="color:var(--champ)">Step 1 · Choose a backlog</b>
     <label>Option A · Start from a sample project <span class="tag sim">FREE · SIMULATED</span></label><select id="pjPreset"></select>
-    <details open style="margin:12px 0 0;padding:10px 12px"><summary>Option B · Use your own project with real Claude <span class="tag real">API KEY</span></summary>
+    <p class="note" style="margin:8px 0 0">This is all you need. Choose a sample and go to Step 2.</p>
+    <p style="text-align:center;color:var(--mute);margin:12px 0 0;font-size:13px">— or, optionally —</p>
+    <details style="margin:8px 0 0;padding:10px 12px"><summary>Option B · Use your own project with real Claude <span class="tag real">API KEY</span></summary>
       <p class="note" style="margin:10px 0 0">Describe your project in 1 to 3 sentences. Claude drafts a backlog with acceptance criteria that you then run through the simulator, review and export.</p>
       <textarea id="pjDesc" maxlength="500" style="margin-top:10px" placeholder="Your project, in 1 to 3 sentences. Example: A web platform where freelancers send invoices, clients pay online, and accountants export monthly reports."></textarea>
       <div class="row" style="margin-top:10px"><button class="pri" id="pjGen">Draft my backlog with Claude</button><span class="tag" id="pjMode"></span></div>
@@ -255,7 +259,8 @@ header h1{font-size:15px}.hbtn{padding:6px 9px}
     </details>
   </div>
   <div class="card">
-    <label style="margin-top:0">Autonomy level</label>
+    <b style="color:var(--champ)">Step 2 · Set the operating model</b>
+    <label>Autonomy level</label>
     <div class="seg" id="pjAuto">
       <button data-a="assist">Assist<br><small>all stages gated</small></button>
       <button data-a="supervised">Supervised<br><small>4 gates / item</small></button>
@@ -275,6 +280,7 @@ header h1{font-size:15px}.hbtn{padding:6px 9px}
       <p class="note">Reviewer pickup delay is the most sensitive assumption here: set it to your real review turnaround. Times are working time (8h days). Small items skip Design; first-sprint greenfield items skip Refactor. Manual baseline assumes perfect parallelism and 5 productive hours per engineer per day, which flatters the manual side.</p>
     </details>
   </div>
+  <p class="note" style="text-align:center;margin:4px 0">↓ <b>Step 3 · Results update automatically</b> ↓</p>
   <div class="card" id="pjResult"></div>
   <div class="card">
     <b style="color:var(--champ)">Project timeline</b>
@@ -392,7 +398,7 @@ header h1{font-size:15px}.hbtn{padding:6px 9px}
   </details>
 </section>
 
-<footer><div style="color:var(--gold);margin-bottom:4px">Version 23 · Typical vs Agentic comparison in Guide, Whole-project heading, agent calls listed by name, Reviewer-time message, done items shown in the plan, PDF at each gate, fix for empty replies, backlog item outputs with review and sign-off, separate plan per autonomy level, no stray text files on export, stage review and PDFs, file names, start date, fix for cut-off replies, clear MS Project note, clearer API labels, roadmap note, Live expectations note, PM briefing, simple navigation, Learn module, cost limits, PDF/Excel/MS Project</div>Designed &amp; Architected by Krishnamurthy Kandregula · Made by Claude</footer>
+<footer><div style="color:var(--gold);margin-bottom:4px">Version 24 · Clearer Whole project screen (steps, Option A or B), Typical vs Agentic comparison in Guide, Whole-project heading, agent calls listed by name, Reviewer-time message, done items shown in the plan, PDF at each gate, fix for empty replies, backlog item outputs with review and sign-off, separate plan per autonomy level, no stray text files on export, stage review and PDFs, file names, start date, fix for cut-off replies, clear MS Project note, clearer API labels, roadmap note, Live expectations note, PM briefing, simple navigation, Learn module, cost limits, PDF/Excel/MS Project</div>Designed &amp; Architected by Krishnamurthy Kandregula · Made by Claude</footer>
 </main>
 
 <nav id="nav">
