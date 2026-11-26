@@ -279,7 +279,7 @@ header h1{font-size:15px}.hbtn{padding:6px 9px}
     <div class="leg"><span><i style="background:#d8b45f"></i>Agent work (stage colour)</span><span><i style="background:repeating-linear-gradient(45deg,#7a3a3a,#7a3a3a 2px,#2b1517 2px,#2b1517 4px)"></i>Waiting for reviewer</span><span><i style="background:#f2efe6"></i>Human review</span></div>
   </div>
   <div class="card"><b style="color:var(--champ)">Sprint roll-up</b><div id="pjSprints" style="margin-top:6px"></div></div>
-  <details><summary>Backlog (<span id="pjCount"></span> items)</summary><div id="pjBacklog" style="margin-top:8px"></div></details>
+  <details open><summary>Backlog (<span id="pjCount"></span> items)</summary><div id="pjBacklog" style="margin-top:8px"></div></details>
   <div class="card">
     <b style="color:var(--champ)">Export the project plan</b>
     <p class="note" style="margin-top:6px">The schedule comes from the simulation above. Task content (summaries, acceptance criteria, risks) comes from a template, or from Claude when you generate it with your key.</p>
@@ -287,6 +287,8 @@ header h1{font-size:15px}.hbtn{padding:6px 9px}
     <label>Project start date</label><input type="date" id="pjStart">
     <div class="row" style="margin-top:8px"><button class="sec" id="pjStartToday">Use today</button></div><p class="note" id="pjStartNote"></p>
     <div class="row" style="margin-top:12px"><button class="pri" id="pjDetGen">Generate details with Claude</button><span class="tag sim" id="pjDetTag">TEMPLATE</span></div>
+    <div class="row" id="pjDetLevels" style="margin-top:8px"></div>
+    <p class="note" style="margin-top:6px">Each autonomy level has its own plan: its own human gates, acceptance criteria and risks. Tap a level to switch, then generate it. A level you already generated is kept.</p>
     <p class="note" id="pjDetNote">Optional. Needs your key under ⚙ Key.</p>
     <div class="row" style="margin-top:10px"><button class="pri" id="pjPdf">⬇ PDF</button><button class="pri" id="pjXlsx">⬇ Excel (.xlsx)</button><button class="pri" id="pjMsp">⬇ MS Project plan (.xml)</button><button class="sec" id="pjCopy">Copy plan text</button></div>
     <p class="note"><b>PDF:</b> a readable plan with schedule, acceptance criteria, assumptions and risks.<br><b>Excel:</b> 5 sheets (summary, WBS schedule, backlog with acceptance criteria, agents and gates, risks). Opens in Excel, Google Sheets and Numbers.<br><b>MS Project:</b> downloads as .xml, not .mpp. The .mpp format is closed and cannot be created in a browser, so this is Microsoft Project's own import format. To get an .mpp: open the file in MS Project (File → Open), then File → Save As → .mpp. It also opens in ProjectLibre and GanttProject (both free).</p>
@@ -377,7 +379,7 @@ header h1{font-size:15px}.hbtn{padding:6px 9px}
   </details>
 </section>
 
-<footer><div style="color:var(--gold);margin-bottom:4px">Version 15 · No stray text files on export, stage review and PDFs, file names, start date, fix for cut-off replies, clear MS Project note, clearer API labels, roadmap note, Live expectations note, PM briefing, simple navigation, Learn module, cost limits, PDF/Excel/MS Project</div>Designed &amp; Architected by Krishnamurthy Kandregula · Made by Claude</footer>
+<footer><div style="color:var(--gold);margin-bottom:4px">Version 17 · Backlog item outputs with review and sign-off, separate plan per autonomy level, no stray text files on export, stage review and PDFs, file names, start date, fix for cut-off replies, clear MS Project note, clearer API labels, roadmap note, Live expectations note, PM briefing, simple navigation, Learn module, cost limits, PDF/Excel/MS Project</div>Designed &amp; Architected by Krishnamurthy Kandregula · Made by Claude</footer>
 </main>
 
 <nav id="nav">
@@ -993,7 +995,7 @@ document.addEventListener('click', e => {
 })();
 
 /* ---------- TASK CONSOLE ---------- */
-let simMode = 'sim', autoLvl = 'supervised', runId = 0, gateResolve = null, sim = {}, artifacts = [], runCtl = null, runBusy = false;
+let runItemRef = null, simMode = 'sim', autoLvl = 'supervised', runId = 0, gateResolve = null, sim = {}, artifacts = [], runCtl = null, runBusy = false;
 const FENCE = '`'.repeat(3);
 $('#simFeature').innerHTML = Object.entries(FEATURES).map(([k,f]) => `<option value="${k}">${f.name}</option>`).join('');
 function fmtH(min){ return (min/60).toFixed(1) + 'h'; }
@@ -1078,7 +1080,7 @@ $('#gNo').onclick = () => {
   answerGate({action:'deny', feedback:fb});
 };
 $('#simReset').onclick = resetSim;
-function slug(s, n){ return String(s || '').toLowerCase().replace(/…/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, n || 40).replace(/-+$/, ''); }
+function slug(s, n){ n = n || 40; const t = String(s || '').toLowerCase().replace(/…/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''); if(t.length <= n) return t; let c = t.slice(0, n); if(t[n] !== '-' && c.includes('-')) c = c.slice(0, c.lastIndexOf('-')); return c.replace(/-+$/, ''); }
 function projPrefix(){ return slug(pj.name, 32) || 'agentic-sdlc'; }
 function runBase(){ const t = slug(sim.task, 28); return projPrefix() + (t ? '-' + t : ''); }
 const FOOTER = 'Agentic SDLC Lab - Designed & Architected by Krishnamurthy Kandregula - Made by Claude';
@@ -1089,24 +1091,24 @@ function artifactsMd(){
     + '\nGenerated with Agentic SDLC Lab · Designed & Architected by Krishnamurthy Kandregula · Made by Claude\n';
 }
 function stageBlocks(a, i){
-  const R = sim.rec, live = R && R.mode === 'live', B = [];
-  const rs = R ? R.stages.find(s => s.name === a.stage.name) : null, decs = rs ? rs.decisions : [];
+  const R = sim.rec, rs = R ? R.stages.find(s => s.name === a.stage.name) : null;
+  const M = a.meta || {project:pj.name, task:sim.task, live:!!(R && R.mode === 'live'), auto:autoLvl, decs:rs ? rs.decisions : []}, B = [];
   B.push({t:'h1', x:`${a.stage.name}: ${a.stage.agent}`});
-  B.push({t:'p', x:`Project: ${pj.name}\nTask: ${sim.task}\nMode: ${live ? 'Live (Claude API)' : 'Simulated'}   Autonomy: ${autoLvl}\nGate: ${a.gated ? 'Human-approved at the gate' : 'Auto-passed (no gate at this autonomy level)'}${a.rev ? ', after ' + a.rev + ' revision' + (a.rev > 1 ? 's' : '') : ''}\nReviewer sign-off: ${a.signed ? signTxt(a) : 'NOT YET SIGNED OFF'}`});
-  if(decs.length) B.push({t:'h3', x:'Human decisions at this stage'}, {t:'code', x:decs.map(d => `${d.at.toLocaleTimeString()}  ${d.action}${d.feedback ? ' - ' + d.feedback : ''}`).join('\n')});
+  B.push({t:'p', x:`Project: ${M.project}\nTask: ${M.task}\nMode: ${M.live ? 'Live (Claude API)' : 'Simulated'}   Autonomy: ${M.auto}\nGate: ${a.gated ? 'Human-approved at the gate' : 'Auto-passed (no gate at this autonomy level)'}${a.rev ? ', after ' + a.rev + ' revision' + (a.rev > 1 ? 's' : '') : ''}\nReviewer sign-off: ${a.signed ? signTxt(a) : 'NOT YET SIGNED OFF'}`});
+  if(M.decs.length) B.push({t:'h3', x:'Human decisions at this stage'}, {t:'code', x:M.decs.map(d => `${d.at.toLocaleTimeString()}  ${d.action}${d.feedback ? ' - ' + d.feedback : ''}`).join('\n')});
   B.push({t:'h2', x:'Output'}, {t:'code', x:a.output});
   B.push({t:'h3', x:'Input given to the agent (trimmed)'}, {t:'code', x:a.userIn.slice(0, 900) + (a.userIn.length > 900 ? '\n[...]' : '')});
-  if(live) B.push({t:'p', x:'Draft for human review. Live agents had no access to your repository or tools; nothing was executed, tested or deployed.'});
+  if(M.live) B.push({t:'p', x:'Draft for human review. Live agents had no access to your repository or tools; nothing was executed, tested or deployed.'});
   return B;
 }
-function exportStagePdf(i){ const a = artifacts[i]; if(!a) return; saveBlob(makePdf(stageBlocks(a, i), FOOTER), `${runBase()}-${p2(i + 1)}-${slug(a.stage.name)}-output.pdf`); }
-function exportAllStagesPdf(){
-  if(!artifacts.length) return;
-  const R = sim.rec, B = [];
-  B.push({t:'h1', x:'Stage outputs for review'}, {t:'p', x:`Project: ${pj.name}\nTask: ${sim.task}\nMode: ${R && R.mode === 'live' ? 'Live (Claude API)' : 'Simulated'}   Autonomy: ${autoLvl}\nSigned off: ${artifacts.filter(a => a.signed).length} of ${artifacts.length} stages`});
-  B.push({t:'h2', x:'Output listing'}, {t:'code', x:artifacts.map((a, i) => `${i + 1}. ${a.stage.name.padEnd(9)} ${(a.gated ? 'Human-approved' : 'Auto-passed').padEnd(15)} ${a.signed ? 'Signed: ' + a.signed.by : 'Not signed off'}`).join('\n')});
-  artifacts.forEach((a, i) => { B.push({t:'pb'}); stageBlocks(a, i).forEach(b => B.push(b)); });
-  saveBlob(makePdf(B, FOOTER), `${runBase()}-all-stage-outputs.pdf`);
+function exportStagePdf(i, arts, base){ arts = arts || artifacts; const a = arts[i]; if(!a) return; saveBlob(makePdf(stageBlocks(a, i), FOOTER), `${base || runBase()}-${p2(i + 1)}-${slug(a.stage.name)}-output.pdf`); }
+function exportAllStagesPdf(arts, base){
+  arts = arts || artifacts; if(!arts.length) return;
+  const R = sim.rec, M = arts[0].meta || {project:pj.name, task:sim.task, live:!!(R && R.mode === 'live'), auto:autoLvl}, B = [];
+  B.push({t:'h1', x:'Stage outputs for review'}, {t:'p', x:`Project: ${M.project}\nTask: ${M.task}\nMode: ${M.live ? 'Live (Claude API)' : 'Simulated'}   Autonomy: ${M.auto}\nSigned off: ${arts.filter(a => a.signed).length} of ${arts.length} stages`});
+  B.push({t:'h2', x:'Output listing'}, {t:'code', x:arts.map((a, i) => `${i + 1}. ${a.stage.name.padEnd(9)} ${(a.gated ? 'Human-approved' : 'Auto-passed').padEnd(15)} ${a.signed ? 'Signed: ' + a.signed.by : 'Not signed off'}`).join('\n')});
+  arts.forEach((a, i) => { B.push({t:'pb'}); stageBlocks(a, i).forEach(b => B.push(b)); });
+  saveBlob(makePdf(B, FOOTER), `${base || runBase()}-all-stage-outputs.pdf`);
 }
 function renderArtifacts(){
   const box = $('#simArtifacts'); if(!artifacts.length){ box.style.display = 'none'; return; }
@@ -1114,6 +1116,7 @@ function renderArtifacts(){
   const open = new Set(Array.from(box.querySelectorAll('details[open]')).map(d => d.dataset.i));
   const keepProj = document.activeElement && document.activeElement.id === 'artProj';
   box.innerHTML = `<b style="color:var(--champ)">Stage outputs · review, sign off and export</b>
+    ${sim.itemRef ? `<div class="row" style="margin:8px 0 0"><button class="sec" id="artBack">← Back to backlog item ${esc(sim.itemRef.id)}</button></div><p class="note" style="margin:6px 0 0">Saved to backlog item ${esc(sim.itemRef.id)}: you can review it there any time.</p>` : ''}
     <p class="note" style="margin:6px 0 0">Open each stage to read what the agent received and produced, then tick the box to sign it off. Sign-offs are written into the PDFs and the Excel file.</p>
     <label>Project name (prefix for every file name)</label><input id="artProj" maxlength="60" value="${esc(pj.name)}">
     <label>Reviewer name</label><input id="artReviewer" maxlength="40" placeholder="Your name" value="${esc(store.get('reviewer', ''))}">
@@ -1138,7 +1141,7 @@ $('#simArtifacts').addEventListener('change', e => {
     if(t.checked && !who){ t.checked = false; $('#artReviewer').focus(); $('#artProg').textContent = 'Enter the reviewer name first, then tick the box.'; return; }
     a.signed = t.checked ? {by:who, at:new Date()} : null;
     const tag = $(`#simArtifacts [data-sg="${i}"]`); tag.textContent = a.signed ? 'signed off' : 'not reviewed'; tag.className = 'tag' + (a.signed ? ' real' : '');
-    updArtProg();
+    updArtProg(); saveItemRun();
   }
 });
 $('#simArtifacts').addEventListener('input', e => { if(e.target.id === 'artReviewer') store.set('reviewer', e.target.value.slice(0, 40)); });
@@ -1149,6 +1152,7 @@ $('#simArtifacts').addEventListener('click', async e => {
     const id = e.target.id; if(!id) return;
     if(id === 'artCopy'){ try{ await navigator.clipboard.writeText(artifactsMd()); e.target.textContent = 'Copied ✓'; }catch(x){ e.target.textContent = 'Copy blocked'; } setTimeout(() => e.target.textContent = 'Copy all', 1500); }
     if(id === 'artDl') saveBlob(new Blob([artifactsMd()], {type:'text/markdown'}), runBase() + '-stage-outputs.md');
+    if(id === 'artBack'){ const bid = sim.itemRef && sim.itemRef.id; go('proj'); const dd = bid && $(`#pjBacklog details.blx[data-id="${bid}"]`); if(dd){ $('#pjBacklog').closest('details').open = true; dd.open = true; dd.scrollIntoView({block:'start'}); } }
     if(id === 'artAllPdf') exportAllStagesPdf();
     if(id === 'artPdf') exportRunPdf();
     if(id === 'artXlsx') exportRunXlsx();
@@ -1159,7 +1163,7 @@ function finishRun(stopped, msg){
   const live = simMode === 'live', sum = $('#simSummary');
   if(sim.rec && !sim.rec.finished) sim.rec.finished = new Date();
   if(!sim.outcome) sim.outcome = stopped ? 'stopped by reviewer' : 'complete';
-  renderArtifacts(); sum.style.display = 'block';
+  saveItemRun(); renderArtifacts(); sum.style.display = 'block';
   const head = stopped ? 'Run stopped' : 'Pipeline complete';
   sum.innerHTML = `<b style="color:var(--champ)">${head}</b><p style="margin:6px 0 0">` + (msg ? esc(msg) + ' ' : '') + (live
     ? `${sim.calls} agent call${sim.calls === 1 ? '' : 's'} using ${sim.tokens.toLocaleString()} tokens (in ${sim.tin.toLocaleString()}, out ${sim.tout.toLocaleString()})${costText(sim.tin, sim.tout)}, ${sim.gates} human gate${sim.gates === 1 ? '' : 's'} passed, ${sim.denials} denial${sim.denials === 1 ? '' : 's'}. Every artifact is a draft for human review: nothing was executed, tested or deployed.`
@@ -1177,7 +1181,8 @@ $('#simRun').onclick = async () => {
     if(!store.get('key', '')){ $('#simLog').innerHTML = '<div class="h">Live mode needs your Anthropic key. Add it under ⚙ Key, then run again.</div>'; $('#setBtn').click(); return; }
     if(!(await confirmRun())) return;
   } else { f = FEATURES[$('#simFeature').value]; task = f.name; }
-  resetSim(); const my = runId; runBusy = true; runCtl = new AbortController(); const signal = runCtl.signal;
+  const itemRef = (runItemRef && ((live && task === runItemRef.task) || (!live && $('#simFeature').value === '__item'))) ? runItemRef : null;
+  resetSim(); sim.itemRef = itemRef; const my = runId; runBusy = true; runCtl = new AbortController(); const signal = runCtl.signal;
   const c = cfg();
   sim.task = task; sim.rec = {task, mode:live ? 'live' : 'sim', model:live ? MODELS[c.model].label : 'n/a (simulated)', auto:autoLvl, started:new Date(), finished:null, stages:[]};
   $('#simRun').disabled = true; $('#simLog').innerHTML = '';
@@ -1544,7 +1549,7 @@ function renderProject(){
   $('#pjAxis').innerHTML = [0, .25, .5, .75, 1].map(f => `<span>${f === 0 ? 'Day 0' : (mk * f * buf / DAY).toFixed(1)}</span>`).join('');
   const sp = {}; r.items.forEach(it => { (sp[it.sprint] = sp[it.sprint] || {n:0, end:0}); sp[it.sprint].n++; sp[it.sprint].end = Math.max(sp[it.sprint].end, it.finish); });
   $('#pjSprints').innerHTML = Object.keys(sp).sort().map(k => `<div class="sprint"><span>Sprint ${k} · ${sp[k].n} items</span><span style="font-family:var(--mono);color:var(--champ)">done by day ${(sp[k].end * buf / DAY).toFixed(1)}</span></div>`).join('');
-  $('#pjBacklog').innerHTML = r.items.map(it => `<div class="bl"><code>${esc(it.id)}</code><div>${esc(it.title)}${it.high ? ' <span class="tag" style="color:var(--red);border-color:#6b2f2f">high risk</span>' : ''}<small>Sprint ${it.sprint} · size ${it.size}/5 · depends on ${it.deps.length ? esc(it.deps.join(', ')) : 'nothing'} · ${it.stages.map(i => STAGES[i].name).join(' › ')}</small></div></div>`).join('');
+  renderBacklog(r.items);
   $('#pjCount').textContent = r.items.length; $('#pjName').textContent = 'Current project: ' + pj.name; { const ni = $('#pjNameInp'); if(ni && document.activeElement !== ni) ni.value = pj.name; }
   $('#pjWipV').textContent = pj.wip; $('#pjRevV').textContent = pj.rev; $('#pjRewV').textContent = pj.rew; $('#pjEngV').textContent = pj.eng;
   $$('#pjAuto button').forEach(b => b.classList.toggle('on', b.dataset.a === pj.auto));
@@ -1632,23 +1637,32 @@ function atWork(start, mins, isEnd){
 const isoL = d => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}T${p2(d.getHours())}:${p2(d.getMinutes())}:00`;
 const xlSerial = d => (Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes()) - Date.UTC(1899, 11, 30)) / 86400000;
 
-let pjDet = store.get('pjDet', null);
+let pjDet = store.get('pjDet', null); if(pjDet && !pjDet.by) pjDet = null;   /* older single-plan saves are dropped */
 const pjSig = () => pj.items.map(i => i.id + ':' + i.title).join('|');
-const activeDet = () => (pjDet && pjDet.sig === pjSig()) ? pjDet : null;
+const AUTO_LABEL = {assist:'Assist', supervised:'Supervised', autonomous:'Autonomous'};
+const gateNames = a => STAGES.filter(s => AUTO[a].gates.includes(s.id)).map(s => s.name);
+const freeNames = a => STAGES.filter(s => !AUTO[a].gates.includes(s.id)).map(s => s.name);
+const activeDet = () => (pjDet && pjDet.sig === pjSig() && pjDet.by[pj.auto]) || null;
 function itemDet(it){
   const d = activeDet(), c = d && d.items[it.id];
   if(c && c.acceptance.length) return c;
   return {summary:`Deliver "${it.title}" end to end (sprint ${it.sprint}, size ${it.size}/5).`,
-    acceptance:['Works end to end as described in the spec', 'Automated tests pass in CI', 'No open high or critical security findings', 'Approved at every required human gate', it.high ? 'High-risk area: security owner signs off' : 'Reviewed by at least one engineer'],
+    acceptance:['Works end to end as described in the spec', 'Automated tests pass in CI', 'No open high or critical security findings', `Human approval recorded at: ${gateNames(pj.auto).join(', ')}${pj.auto === 'autonomous' ? '; other stages covered by automated tests and an audit log' : (freeNames(pj.auto).length ? '; ' + freeNames(pj.auto).join(' and ') + ' run unattended' : '')}`, it.high ? 'High-risk area: security owner signs off' : 'Reviewed by at least one engineer'],
     risks: it.high ? ['High-risk area (payments, identity or personal data)'] : []};
 }
 function projDet(){
-  const t = {assumptions:[`Agent operating model: ${pj.auto} autonomy, ${pj.wip} items in parallel, ${pj.rev} reviewers`, `Reviewer pickup delay ${pj.lat}h; review effort ${pj.revMin} min per size-3 item`, 'Working time is 8-hour days, Monday to Friday', 'The schedule is a simulation, not a commitment'],
-    risks:['Review capacity may become the bottleneck', 'Dependencies between items limit parallel work', 'Agent output quality varies; expect rework at gates']};
+  const t = {assumptions:[`Agent operating model: ${pj.auto} autonomy (human gates: ${gateNames(pj.auto).join(', ')}), ${pj.wip} items in parallel, ${pj.rev} reviewers`, `Reviewer pickup delay ${pj.lat}h; review effort ${pj.revMin} min per size-3 item`, 'Working time is 8-hour days, Monday to Friday', 'The schedule is a simulation, not a commitment'],
+    risks:[{assist:'Every stage waits on a reviewer, so review capacity sets the pace', supervised:'Design and Refactor run unattended and can drift before the next gate', autonomous:'Only release is gated: weak tests or policies could let defects through until the end'}[pj.auto], 'Dependencies between items limit parallel work', 'Agent output quality varies; expect rework at gates']};
   const d = activeDet(), p = d && d.project; if(!p) return t;
   return {assumptions:p.assumptions.length ? p.assumptions : t.assumptions, risks:p.risks.length ? p.risks : t.risks};
 }
-function updDetTag(){ const real = !!activeDet(), t = $('#pjDetTag'); t.textContent = real ? 'REAL · CLAUDE API' : 'TEMPLATE'; t.className = 'tag ' + (real ? 'real' : 'sim'); }
+function updDetTag(){
+  const real = !!activeDet(), t = $('#pjDetTag'), L = AUTO_LABEL[pj.auto];
+  t.textContent = (real ? 'REAL · CLAUDE API · ' : 'TEMPLATE · ') + L; t.className = 'tag ' + (real ? 'real' : 'sim');
+  $('#pjDetGen').textContent = (real ? 'Regenerate ' : 'Generate ') + L + ' plan details with Claude';
+  const ok = pjDet && pjDet.sig === pjSig() ? pjDet.by : {};
+  $('#pjDetLevels').innerHTML = Object.keys(AUTO_LABEL).map(k => `<button class="sec ${k === pj.auto ? 'on' : ''}" data-lv="${k}">${AUTO_LABEL[k]} ${ok[k] ? '✓ Claude' : '· template'}</button>`).join('');
+}
 
 function buildPlan(ctx){
   ctx = ctx || projCtx();
@@ -1845,15 +1859,113 @@ function exportProjectPdf(){
     B.push({t:'code', x:d.acceptance.map((a, k) => `${k + 1}. ${a}`).join('\n') + (d.risks.length ? '\nRisks: ' + d.risks.join('; ') : '')});
   });
   B.push({t:'h2', x:'Assumptions'}, {t:'code', x:pd.assumptions.map(a => '- ' + a).join('\n')}, {t:'h2', x:'Risks'}, {t:'code', x:pd.risks.map(a => '- ' + a).join('\n')});
-  saveBlob(makePdf(B, 'Agentic SDLC Lab - Designed & Architected by Krishnamurthy Kandregula - Made by Claude'), projPrefix() + '-project-plan.pdf');
+  saveBlob(makePdf(B, 'Agentic SDLC Lab - Designed & Architected by Krishnamurthy Kandregula - Made by Claude'), projPrefix() + '-project-plan-' + pj.auto + '.pdf');
 }
 
-const projCtx = () => ({L:pjLast, name:pj.name, auto:pj.auto, model:{wip:pj.wip, rev:pj.rev, rew:pj.rew}, itemDet, projDet, real:!!activeDet(), file:projPrefix() + '-project-plan', sprintName:null, summaryName:'Summary'});
+/* ---------- BACKLOG ITEM RUNS: outputs per item, review and sign-off ---------- */
+let pjRuns = store.get('pjRuns', null);
+function getRuns(){ if(!pjRuns || pjRuns.sig !== pjSig()) pjRuns = {sig:pjSig(), by:{}}; return pjRuns.by; }
+function itemLogs(it){
+  const n = itemDet(it).acceptance.length;
+  return {plan:[`Parsed ${it.id} into ${n} acceptance criteria`, 'Task graph built from the summary and dependencies'],
+    design:['Design note drafted against the acceptance criteria', 'Interfaces and data changes listed'],
+    build:['Implementation plan and tests mapped to each criterion', 'Test list generated'],
+    refactor:['Refactor candidates identified in the touched code', 'Behaviour kept unchanged'],
+    security:it.high ? ['HIGH RISK area: security owner review required', 'Threat checklist generated'] : ['Dependency and secrets checks planned', 'No findings in the template run'],
+    ship:['Release notes drafted', 'Rollout and rollback plan outlined']};
+}
+function itemSimArt(it, d){
+  const ac = d.acceptance.map((a, i) => `${i + 1}. ${a}`).join('\n'), deps = it.deps.length ? it.deps.join(', ') : 'none';
+  return {
+    plan:`SPEC: ${it.id} ${it.title}\n\nSummary: ${d.summary}\n\nACCEPTANCE CRITERIA\n${ac}\n\nDEPENDENCIES: ${deps}\nSIZE: ${it.size}/5   SPRINT: ${it.sprint}${it.high ? '\nRISK: HIGH, security owner must sign off' : ''}\n\nOPEN QUESTIONS\n- Who is the product owner approving this item?\n- Which environments and data does it touch?`,
+    design:`DESIGN NOTE: ${it.title}\n\nApproach\n- Keep the change inside the existing modules; add new code behind a feature flag.\n- Define the interface first, then the data changes, then the UI or API surface.\n\nCovers criteria\n${ac}\n\nRisks\n- ${it.deps.length ? 'Depends on ' + deps + ': agree the contract before building.' : 'No upstream dependency.'}\n- ${it.high ? 'High-risk area: threat model before build.' : 'Low risk: standard review.'}`,
+    build:`BUILD PLAN: ${it.title}\n\nSteps\n1. Create branch and scaffold the change behind a flag.\n2. Implement in small pull requests, one per criterion where possible.\n3. Run CI after each pull request.\n\nTESTS (one per acceptance criterion)\n${d.acceptance.map((a, i) => `T${i + 1}: verifies "${a}"`).join('\n')}`,
+    refactor:`REFACTOR NOTES: ${it.title}\n\n- Extract any duplicated logic found in the touched files into a shared helper.\n- Rename unclear identifiers; no behaviour change.\n- Run the full test suite before and after: results must match.`,
+    security:`SECURITY REVIEW: ${it.title}\n\nChecklist\n- Input validation and output encoding: planned\n- Authentication and authorisation on every new path: ${it.high ? 'REQUIRES owner review' : 'standard'}\n- Secrets and personal data not logged: checked\n- Dependencies scanned: clean in this simulation\n\n${it.high ? 'HIGH RISK: do not release without security owner sign-off.' : 'No blocking findings.'}`,
+    ship:`RELEASE NOTES: ${it.title}\n\nWhat changed: ${d.summary}\n\nRollout\n- Enable the flag for 5% of users, watch errors and latency, then ramp.\n\nRollback\n- Switch the flag off; no data migration to reverse.`};
+}
+function savedToArt(run, st){
+  return {stage:{name:st.name, agent:st.agent}, gated:st.gated, rev:st.rev, output:st.output, userIn:st.input, signed:st.signed ? {by:st.signed.by, at:new Date(st.signed.at)} : null,
+    meta:{project:pj.name, task:run.task, live:run.mode === 'live', auto:run.auto, decs:(st.decisions || []).map(x => ({at:new Date(x.at), action:x.action, feedback:x.feedback}))}};
+}
+function itemBase(id){ const it = pj.items.find(x => x.id === id); return projPrefix() + '-' + slug(id, 6) + '-' + slug(it ? it.title : '', 24); }
+function saveItemRun(){
+  const ref = sim.itemRef; if(!ref || !artifacts.length || !sim.rec) return;
+  const R = sim.rec, by = getRuns();
+  by[ref.id] = {at:new Date().toISOString(), title:ref.title, mode:R.mode, auto:R.auto, task:sim.task, outcome:sim.outcome || '', stages:artifacts.map(a => {
+    const rs = R.stages.find(s => s.name === a.stage.name), decs = rs ? rs.decisions : [];
+    return {name:a.stage.name, agent:a.stage.agent, gated:a.gated, rev:a.rev, output:String(a.output).slice(0, 6000), input:String(a.userIn).slice(0, 1200),
+      decisions:decs.map(d => ({at:new Date(d.at).toISOString(), action:d.action, feedback:d.feedback})), signed:a.signed ? {by:a.signed.by, at:new Date(a.signed.at).toISOString()} : null};})};
+  try{ store.set('pjRuns', pjRuns); }catch(e){}
+  try{ renderBacklog(pj.items); }catch(e){}
+}
+function itemRunHtml(it, run){
+  const n = run.stages.filter(s => s.signed).length;
+  return `<div style="margin-top:12px;border-top:1px solid var(--line);padding-top:10px"><b style="color:var(--champ)">Stage outputs for ${esc(it.id)}</b>
+    <p class="note" style="margin:4px 0 8px">${run.mode === 'live' ? 'REAL · Claude API' : 'SIMULATED'} · ${esc(AUTO_LABEL[run.auto] || run.auto)} level · ${new Date(run.at).toLocaleString()}${run.outcome && run.outcome !== 'complete' ? ' · stopped: ' + esc(run.outcome) : ''} · ${n} of ${run.stages.length} signed off</p>`
+    + run.stages.map((st, i) => `<details class="stg" data-k="${esc(it.id)}:${i}"><summary>${i + 1}. ${esc(st.agent)} ${st.gated ? '<span class="tag real">gate approved</span>' : '<span class="tag">auto-passed</span>'} <span class="tag ${st.signed ? 'real' : ''}">${st.signed ? 'signed off' : 'not reviewed'}</span></summary>
+      <label>Output</label><pre class="out" style="max-height:260px;overflow:auto">${esc(st.output)}</pre>
+      <div class="chk"><input type="checkbox" id="isg-${esc(it.id)}-${i}" data-isign="${esc(it.id)}:${i}" ${st.signed ? 'checked' : ''}><label for="isg-${esc(it.id)}-${i}" style="margin:0;text-transform:none;letter-spacing:0;font:14px var(--sans);color:var(--text)">I have reviewed this output and approve it${st.signed ? ' (' + esc(st.signed.by) + ')' : ''}</label></div>
+      <div class="row" style="margin-top:8px"><button class="sec" data-ipdf="${esc(it.id)}:${i}">⬇ This stage (PDF)</button></div></details>`).join('')
+    + `<div class="row" style="margin-top:8px"><button class="pri" data-iall="${esc(it.id)}">⬇ All stage outputs for ${esc(it.id)} (PDF)</button></div></div>`;
+}
+function renderBacklog(items){
+  const box = $('#pjBacklog'); if(!box) return;
+  const open = new Set(Array.from(box.querySelectorAll('details[open]')).map(d => d.dataset.id || d.dataset.k));
+  let runs = {}; try{ runs = getRuns(); }catch(e){}
+  box.innerHTML = `<label>Reviewer name</label><input id="blReviewer" maxlength="40" placeholder="Your name" value="${esc(store.get('reviewer', ''))}">
+    <p class="note" style="margin:8px 0">Tap an item to see its acceptance criteria, run it through the agents, then review and sign off the output of each stage.</p>`
+    + items.map(it => {
+      const d = itemDet(it), run = runs[it.id], n = run ? run.stages.filter(s => s.signed).length : 0;
+      const chip = !run ? '<span class="tag">not run</span>' : `<span class="tag ${n === run.stages.length ? 'real' : ''}">${n} of ${run.stages.length} signed off</span>`;
+      return `<details class="blx" data-id="${esc(it.id)}" ${open.has(it.id) ? 'open' : ''}><summary><code style="color:var(--gold)">${esc(it.id)}</code> ${esc(it.title)} ${it.high ? '<span class="tag" style="color:var(--red);border-color:#6b2f2f">high risk</span>' : ''} ${chip}</summary>
+        <p class="note" style="margin:6px 0">Sprint ${it.sprint} · size ${it.size}/5 · depends on ${it.deps.length ? esc(it.deps.join(', ')) : 'nothing'}</p>
+        <label>Summary</label><p style="margin:4px 0;font-size:14px">${esc(d.summary)}</p>
+        <label>Acceptance criteria</label><ul style="margin:4px 0 8px;padding-left:18px;font-size:14px">${d.acceptance.map(a => `<li>${esc(a)}</li>`).join('')}</ul>
+        <div class="row"><button class="pri" data-run="${esc(it.id)}" data-mode="sim">▶ Run simulated (free)</button><button class="sec" data-run="${esc(it.id)}" data-mode="live">▶ Run with Claude (API key)</button></div>
+        <p class="note" style="margin:6px 0 0">Runs this item through the six agents at the plan's ${AUTO_LABEL[pj.auto]} level. Human gates: ${gateNames(pj.auto).join(', ')}. You can sign off every stage afterwards.</p>
+        ${run ? itemRunHtml(it, run) : ''}</details>`;
+    }).join('');
+  box.querySelectorAll('details.stg').forEach(d => { if(open.has(d.dataset.k)) d.open = true; });
+}
+function runItemPipeline(id, mode){
+  const it = pj.items.find(x => x.id === id); if(!it) return;
+  if(runBusy){ go('sim'); return; }
+  if(mode === 'live'){
+    if(!isUnlocked()){ openLearn(0, 'live'); return; }
+    if(!store.get('key', '')){ $('#setBtn').click(); return; }
+  }
+  const d = itemDet(it);
+  FEATURES.__item = {name:`${it.id} · ${it.title}`, high:!!it.high, logs:itemLogs(it)}; SIM_ART.__item = itemSimArt(it, d);
+  const sel = $('#simFeature'); if(!sel.querySelector('option[value="__item"]')) sel.insertAdjacentHTML('beforeend', '<option value="__item"></option>');
+  sel.querySelector('option[value="__item"]').textContent = 'Backlog item: ' + FEATURES.__item.name; sel.value = '__item';
+  const task = `Project: ${pj.name}. Backlog item ${it.id}: ${it.title}. ${d.summary} Acceptance criteria: ${d.acceptance.join('; ')}.`.slice(0, 600);
+  runItemRef = {id:it.id, title:it.title, task};
+  go('sim'); setAuto(pj.auto); setSimMode(mode); if(mode === 'live') $('#liveTask').value = task;
+  setTimeout(() => $('#simRun').click(), 80);
+}
+$('#pjBacklog').addEventListener('click', e => {
+  const r = e.target.closest('[data-run]'); if(r){ runItemPipeline(r.dataset.run, r.dataset.mode); return; }
+  const p = e.target.closest('[data-ipdf]'); if(p){ const [id, i] = p.dataset.ipdf.split(':'), run = getRuns()[id]; if(run) exportStagePdf(+i, run.stages.map(s => savedToArt(run, s)), itemBase(id)); return; }
+  const a = e.target.closest('[data-iall]'); if(a){ const id = a.dataset.iall, run = getRuns()[id]; if(run) exportAllStagesPdf(run.stages.map(s => savedToArt(run, s)), itemBase(id)); }
+});
+$('#pjBacklog').addEventListener('input', e => { if(e.target.id === 'blReviewer') store.set('reviewer', e.target.value.slice(0, 40)); });
+$('#pjBacklog').addEventListener('change', e => {
+  const t = e.target, k = t.dataset && t.dataset.isign; if(!k) return;
+  const [id, idx] = k.split(':'), run = getRuns()[id], who = ($('#blReviewer').value || '').trim(); if(!run) return;
+  if(t.checked && !who){ t.checked = false; $('#blReviewer').focus(); return; }
+  const st = run.stages[+idx]; st.signed = t.checked ? {by:who, at:new Date().toISOString()} : null; store.set('pjRuns', pjRuns);
+  if(sim.itemRef && sim.itemRef.id === id && artifacts[+idx]){ artifacts[+idx].signed = st.signed ? {by:who, at:new Date(st.signed.at)} : null; renderArtifacts(); }
+  renderBacklog(pj.items);
+});
+
+const projCtx = () => ({L:pjLast, name:pj.name, auto:pj.auto, model:{wip:pj.wip, rev:pj.rev, rew:pj.rew}, itemDet, projDet, real:!!activeDet(), file:projPrefix() + '-project-plan-' + pj.auto, sprintName:null, summaryName:'Summary'});
 if(!pj.startUser || !pj.start) pj.start = defaultStart();
 $('#pjStart').value = pj.start;
 $('#pjNameInp').addEventListener('change', e => { const v = e.target.value.trim(); if(v){ pj.name = v.slice(0, 60); store.set('pj', {...pj}); renderProject(); } });
 const startNote = () => { $('#pjStartNote').textContent = pj.startUser ? 'Custom start date. Weekends are skipped in the schedule.' : 'Default: today, the day you run it. Change it if the project starts on another day. Weekends are skipped in the schedule.'; };
 $('#pjStart').addEventListener('change', e => { pj.startUser = !!e.target.value; pj.start = e.target.value || defaultStart(); store.set('pj', {...pj}); startNote(); });
+$('#pjDetLevels').addEventListener('click', e => { const b = e.target.closest('[data-lv]'); if(b){ const t = $(`#pjAuto [data-a=${b.dataset.lv}]`); if(t) t.click(); } });
 $('#pjStartToday').onclick = () => { pj.startUser = false; pj.start = defaultStart(); $('#pjStart').value = pj.start; store.set('pj', {...pj}); startNote(); };
 startNote();
 $('#pjXlsx').onclick = () => { try{ exportXlsx(); }catch(e){ $('#pjDetNote').textContent = 'Export failed: ' + e.message; } };
@@ -1863,11 +1975,11 @@ $('#pjDetGen').onclick = async () => {
   const note = $('#pjDetNote');
   if(!isUnlocked()){ openLearn(0); return; }
   if(!store.get('key', '')){ note.textContent = 'Add your Anthropic key under ⚙ Key first, then try again.'; $('#setBtn').click(); return; }
-  $('#pjDetGen').disabled = true; note.textContent = 'Asking Claude for summaries, acceptance criteria and risks (one call, capped)…';
+  $('#pjDetGen').disabled = true; note.textContent = 'Asking Claude for the ' + AUTO_LABEL[pj.auto] + ' plan: summaries, acceptance criteria and risks (one call, capped)…';
   try{
     const list = pj.items.map(i => `${i.id}: ${i.title} (sprint ${i.sprint}, size ${i.size}/5${i.high ? ', high risk' : ''}${i.deps.length ? ', depends on ' + i.deps.join(', ') : ''})`).join('\n');
     const r = await claude({maxOut:HARD.outDetails,
-      system:'You are an experienced delivery lead. Return ONLY valid JSON, no prose and no code fences, shaped as {"items":[{"id":"...","summary":"one short sentence","acceptance":["3 to 4 specific, testable criteria, each under 20 words"],"risks":["0 to 1 short risk"]}],"project":{"assumptions":["3 short"],"risks":["3 short"]}}. Use the exact item ids provided and cover every item. Be brief.',
+      system:`Autonomy level: ${AUTO_LABEL[pj.auto]}. Human gates: ${gateNames(pj.auto).join(', ')}. Unattended stages: ${freeNames(pj.auto).join(', ') || 'none'}. Tailor everything to this level: acceptance criteria must include the human review point for gated stages and the automated checks that cover unattended stages; risks and assumptions must reflect what can go wrong at this level.\n` + 'You are an experienced delivery lead. Return ONLY valid JSON, no prose and no code fences, shaped as {"items":[{"id":"...","summary":"one short sentence","acceptance":["3 to 4 specific, testable criteria, each under 20 words"],"risks":["0 to 1 short risk"]}],"project":{"assumptions":["3 short"],"risks":["3 short"]}}. Use the exact item ids provided and cover every item. Be brief.',
       user:`Project: ${pj.name}\n\nWork items:\n${list}`});
     const t = r.text, a = t.indexOf('{'), b = t.lastIndexOf('}');
     let j = null; if(a >= 0 && b > a){ try{ j = JSON.parse(t.slice(a, b + 1)); }catch(e){ j = null; } }
@@ -1876,8 +1988,8 @@ $('#pjDetGen').onclick = async () => {
     (j.items || []).forEach(o => { if(o && ids.has(o.id)) items[o.id] = {summary:String(o.summary || '').slice(0, 240), acceptance:arr(o.acceptance, 6, 200), risks:arr(o.risks, 3, 200)}; });
     if(!Object.keys(items).length) throw new Error('No usable items in the reply');
     const pr = j.project || {};
-    pjDet = {sig:pjSig(), items, project:{assumptions:arr(pr.assumptions, 6, 200), risks:arr(pr.risks, 6, 200)}}; store.set('pjDet', pjDet);
-    note.textContent = `Claude wrote details for ${Object.keys(items).length} of ${pj.items.length} items (${(r.tin + r.tout).toLocaleString()} tokens used). Exports now use them.`;
+    const by = (pjDet && pjDet.sig === pjSig()) ? pjDet.by : {}; by[pj.auto] = {items, project:{assumptions:arr(pr.assumptions, 6, 200), risks:arr(pr.risks, 6, 200)}}; pjDet = {sig:pjSig(), by}; store.set('pjDet', pjDet);
+    note.textContent = `Claude wrote the ${AUTO_LABEL[pj.auto]} plan details for ${Object.keys(items).length} of ${pj.items.length} items (${(r.tin + r.tout).toLocaleString()} tokens used). Exports now use them. Switch the autonomy level above to make the plan for another level.`;
   }catch(err){ note.textContent = 'Could not generate: ' + err.message; }
   $('#pjDetGen').disabled = false; updDetTag();
 };
