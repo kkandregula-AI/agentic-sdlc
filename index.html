@@ -144,6 +144,7 @@ header h1{font-size:15px}.hbtn{padding:6px 9px}
   <h2>Start here</h2>
   <p class="lead">Agents do the work in each stage of building software. People approve the decisions. This app lets you see that safely, in 4 easy steps.</p>
   <div class="card"><span class="tag gold">Project manager or lead?</span><p style="margin:8px 0 10px">Read a 1-minute briefing on why agentic delivery matters to you and what to expect.</p><button class="sec" id="pmOpen">Read the PM briefing</button></div>
+  <div class="card" style="border-color:var(--gold)"><span class="tag gold">THE KEY IDEA</span><p style="margin:8px 0 0"><b>Agents run fast. People must review.</b> Every gate needs a reviewer to read and approve what the agents produced, so reviewer time is what you plan for, not an afterthought. This tool shows how much you need.</p></div>
   <div class="card step"><b>1 · Learn the idea</b><p>5 minutes. Read what each agent does and where a person stays in charge.</p><button class="sec" data-go="stages">Open Stages</button></div>
   <div class="card step"><b>2 · Try one task</b><p>Run one task from plan to release. Review what each agent received and produced, then approve or deny. <span class="tag sim">SIMULATED</span> is free.</p><button class="pri" data-go="sim">Run a task</button></div>
   <div class="card step"><b>3 · Try a whole project</b><p>See how a full backlog flows through the agents and where reviewers become the bottleneck. Export the plan to PDF, Excel or MS Project.</p><button class="sec" data-go="proj">Run a project</button></div>
@@ -381,7 +382,7 @@ header h1{font-size:15px}.hbtn{padding:6px 9px}
   </details>
 </section>
 
-<footer><div style="color:var(--gold);margin-bottom:4px">Version 20 · Done items shown in the plan, PDF at each gate, fix for empty replies, backlog item outputs with review and sign-off, separate plan per autonomy level, no stray text files on export, stage review and PDFs, file names, start date, fix for cut-off replies, clear MS Project note, clearer API labels, roadmap note, Live expectations note, PM briefing, simple navigation, Learn module, cost limits, PDF/Excel/MS Project</div>Designed &amp; Architected by Krishnamurthy Kandregula · Made by Claude</footer>
+<footer><div style="color:var(--gold);margin-bottom:4px">Version 21 · Reviewer-time message, done items shown in the plan, PDF at each gate, fix for empty replies, backlog item outputs with review and sign-off, separate plan per autonomy level, no stray text files on export, stage review and PDFs, file names, start date, fix for cut-off replies, clear MS Project note, clearer API labels, roadmap note, Live expectations note, PM briefing, simple navigation, Learn module, cost limits, PDF/Excel/MS Project</div>Designed &amp; Architected by Krishnamurthy Kandregula · Made by Claude</footer>
 </main>
 
 <nav id="nav">
@@ -399,7 +400,7 @@ header h1{font-size:15px}.hbtn{padding:6px 9px}
     <li><b>Shorter lead time.</b> Agents do the first draft of each stage, so the next person starts sooner.</li>
     <li><b>Fewer hand-off delays.</b> Plan, design, build, refactor, security and release stay connected.</li>
     <li><b>You stay in control.</b> People approve at gates you choose. Nothing ships without a decision.</li>
-    <li><b>New bottleneck to manage:</b> reviewer capacity. This tool shows it before you commit.</li>
+    <li><b>Reviewer time is the price of speed.</b> Agents work fast, but every gate needs a person to review and approve. Book reviewer time up front; this tool shows how many hours you need.</li>
   </ul>
   <p class="note" style="margin:0 0 6px;font-size:13px"><b>What you can do here</b></p>
   <ul style="margin:0 0 10px;padding-left:18px;font-size:13px;line-height:1.5">
@@ -1182,10 +1183,12 @@ function finishRun(stopped, msg){
   if(sim.rec && !sim.rec.finished) sim.rec.finished = new Date();
   if(!sim.outcome) sim.outcome = stopped ? 'stopped by reviewer' : 'complete';
   saveItemRun(); renderArtifacts(); sum.style.display = 'block';
+  const revNote = `<p class="note" style="margin:8px 0 0"><b>Agents were fast; the review is the real work.</b> Each gate needs a person to read the output and approve or deny it. Plan reviewer time for every stage you gate.</p>`;
   const head = stopped ? 'Run stopped' : 'Pipeline complete';
   sum.innerHTML = `<b style="color:var(--champ)">${head}</b><p style="margin:6px 0 0">` + (msg ? esc(msg) + ' ' : '') + (live
     ? `${sim.calls} agent call${sim.calls === 1 ? '' : 's'} using ${sim.tokens.toLocaleString()} tokens (in ${sim.tin.toLocaleString()}, out ${sim.tout.toLocaleString()})${costText(sim.tin, sim.tout)}, ${sim.gates} human gate${sim.gates === 1 ? '' : 's'} passed, ${sim.denials} denial${sim.denials === 1 ? '' : 's'}. Every artifact is a draft for human review: nothing was executed, tested or deployed.`
     : `${stopped ? 'So far: ' : 'End to end in '}<b>${fmtH(sim.elapsed)}</b> of clock time with <b>${fmtH(sim.humanActive)}</b> of active human review across ${sim.gates} gate${sim.gates === 1 ? '' : 's'}${sim.denials ? ` (${sim.denials} denial${sim.denials > 1 ? 's' : ''})` : ''}. Manual baseline: about ${BASELINE_H}h of hands-on effort. ${autoLvl === 'assist' ? 'Try Supervised to see how fewer gates cut waiting.' : autoLvl === 'autonomous' ? 'Fastest, but only safe when tests and policy-as-code are strong.' : 'A balanced default: humans decide, agents do the work.'}`) + '</p>';
+  sum.insertAdjacentHTML('beforeend', revNote);
   $('#simRun').disabled = false; runBusy = false; runCtl = null; updLimitsUi();
 }
 $('#simRun').onclick = async () => {
@@ -1553,6 +1556,7 @@ function renderProject(){
   if(util > 0.7){ verdict = 'Reviewers are the bottleneck'; tip = 'Add reviewers, shrink PR size, or move low-risk stages to autonomous.'; }
   else if(r.wipBlocked > 0){ verdict = 'The parallel-item limit is the bottleneck'; tip = 'Raise parallel work items, as long as reviewers can keep up.'; }
   else { verdict = 'Dependencies between items set the pace'; tip = 'Split items so more work can start in parallel, or reorder the backlog.'; }
+  const agentH = r.items.reduce((a, it) => a + it.segs.filter(g => g.t === 'agent').reduce((x, g) => x + (g.b - g.a), 0), 0) / 60, waitH = r.waitMins / 60;
   const msg = pct >= 0 ? `About <b style="color:var(--green)">${pct}% faster</b> than the manual plan, finishing roughly <b>${(manDays - agDays).toFixed(1)} days</b> earlier.`
     : `About <b style="color:var(--red)">${-pct}% slower</b> than the manual plan under these settings. Review capacity or dependencies are eating the gain.`;
   $('#pjResult').innerHTML = `<div class="grid2"><div><div class="note" style="margin:0">Manual team (${pj.eng} engineers)</div><div class="big">${manDays.toFixed(1)}d</div></div>
@@ -1561,7 +1565,9 @@ function renderProject(){
     <div class="stats"><div class="stat"><b>${Math.round(util * 100)}%</b><span>reviewer load</span></div>
     <div class="stat"><b>${avgWait.toFixed(1)}h</b><span>avg wait per gate</span></div>
     <div class="stat"><b>${humanH.toFixed(0)}h</b><span>review effort vs ${manH.toFixed(0)}h manual</span></div></div>
-    <p style="margin:10px 0 0"><b style="color:var(--gold)">Likely bottleneck: ${verdict}.</b> <span style="color:var(--mute)">${tip}</span></p>`;
+    <p style="margin:10px 0 0"><b style="color:var(--gold)">Likely bottleneck: ${verdict}.</b> <span style="color:var(--mute)">${tip}</span></p>
+    <div class="card" style="margin:12px 0 0;border-color:var(--gold)"><b style="color:var(--champ)">Agents are fast. Reviewer time is what you must plan for.</b>
+      <p style="margin:6px 0 0;font-size:14px">Agents need about <b>${agentH.toFixed(0)}h</b> of work across this backlog, but nothing moves past a gate until a person approves it. Plan for about <b>${humanH.toFixed(0)}h</b> of reviewer time, and expect items to wait about <b>${waitH.toFixed(0)}h</b> in total for a reviewer to pick them up. Book that time in your reviewers' calendars before you start: if reviewers are not available, the agents' speed is wasted.</p></div>`;
   const mk = r.makespan;
   $('#pjGantt').innerHTML = r.items.map(it => `<div class="grow"><span class="glbl" title="${esc(it.title)}">${esc(it.id)}</span><div class="gtrack">${it.segs.map(g => `<div class="gseg ${g.t}" title="${esc(STAGES.find(x => x.id === g.s).name)} · ${g.t}" style="left:${g.a / mk * 100}%;width:${Math.max(0.3, (g.b - g.a) / mk * 100)}%;${g.t === 'agent' ? 'background:' + STAGES.find(x => x.id === g.s).color : ''}"></div>`).join('')}</div></div>`).join('');
   $('#pjAxis').innerHTML = [0, .25, .5, .75, 1].map(f => `<span>${f === 0 ? 'Day 0' : (mk * f * buf / DAY).toFixed(1)}</span>`).join('');
@@ -1574,7 +1580,7 @@ function renderProject(){
   const sel = $('#brItem'), cur = sel.value;
   sel.innerHTML = '<option value="">— none —</option>' + r.items.map(it => `<option value="${esc(it.id)}">${esc(it.id)} · ${esc(it.title)}</option>`).join('');
   sel.value = [...sel.options].some(o => o.value === cur) ? cur : '';
-  pjLast = {r, manDays, agDays, pct, util, verdict, manH};
+  pjLast = {r, manDays, agDays, pct, util, verdict, manH, agentH, humanH, waitH};
   const keep = {...pj}; store.set('pj', keep); if(typeof updDetTag === 'function' && typeof pjDet !== 'undefined') updDetTag();
 }
 function initProjectControls(){
@@ -1784,7 +1790,7 @@ function planSheets(ctx){
     ['Autonomy level', ctx.auto], ['Human gates', AUTO[ctx.auto].gates.map(g => STAGES.find(s => s.id === g).name).join(', ') + ' (security always gated for high-risk items)'],
     ['Parallel work items', ctx.model.wip], ['Human reviewers', ctx.model.rev], ['Rework rate (%)', ctx.model.rew],
     ['Manual estimate (working days)', Math.round(L.manDays * 10) / 10], ['With agents (working days)', Math.round(L.agDays * 10) / 10], ['Faster than manual (%)', L.pct],
-    ['Reviewer load (%)', Math.round(L.util * 100)], ['Likely bottleneck', L.verdict],
+    ['Reviewer load (%)', Math.round(L.util * 100)], ['Reviewer time required (hours)', Math.round(L.humanH)], ['Agent work (hours)', Math.round(L.agentH)], ['Expected wait for reviewers (hours, total)', Math.round(L.waitH)], ['Likely bottleneck', L.verdict],
     ...(ctx.status ? [['Work items done', `${L.r.items.filter(i => ctx.status(i).done).length} of ${L.r.items.length} (every stage output reviewed and signed off)`], ['Overall progress (%)', P.rows[0].pct]] : []),
     ['Schedule source', 'Simulation (illustrative, not a commitment)'], ['Task content source', real ? 'Claude API (real)' : 'Template'],
     ['Generated', new Date().toLocaleString()], ['Generated by', 'Agentic SDLC Lab · Designed & Architected by Krishnamurthy Kandregula · Made by Claude']];
@@ -1881,7 +1887,7 @@ function exportProjectPdf(){
   const ctx = projCtx(), P = buildPlan(ctx), L = ctx.L, B = [], pd = ctx.projDet();
   const D = (m, e) => atWork(P.start, m, e), fm = d => `${p2(d.getMonth() + 1)}-${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}`, fday = d => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
   B.push({t:'h1', x:'Agentic SDLC project plan'}, {t:'p', x:ctx.name});
-  B.push({t:'p', x:`Planned start: ${fday(D(0, false))}   Planned finish (incl. ${pj.buf}% buffer): ${fday(D(P.total, true))}\nOperating model: ${ctx.auto} autonomy, ${pj.wip} items in parallel, ${pj.rev} reviewers, ${pj.rew}% rework\nManual estimate: ${L.manDays.toFixed(1)} working days   With agents: ${L.agDays.toFixed(1)} working days (${L.pct}% faster)\nReviewer load: ${Math.round(L.util * 100)}%   Likely bottleneck: ${L.verdict}\nContent source: ${ctx.real ? 'Claude API (real)' : 'Template'}   Schedule source: simulation (not a commitment)`});
+  B.push({t:'p', x:`Planned start: ${fday(D(0, false))}   Planned finish (incl. ${pj.buf}% buffer): ${fday(D(P.total, true))}\nOperating model: ${ctx.auto} autonomy, ${pj.wip} items in parallel, ${pj.rev} reviewers, ${pj.rew}% rework\nManual estimate: ${L.manDays.toFixed(1)} working days   With agents: ${L.agDays.toFixed(1)} working days (${L.pct}% faster)\nReviewer load: ${Math.round(L.util * 100)}%   Likely bottleneck: ${L.verdict}\nAgents are fast; reviewer time is required: about ${Math.round(L.humanH)}h of review for ${Math.round(L.agentH)}h of agent work, with about ${Math.round(L.waitH)}h of waiting for reviewers. Book reviewer time before starting.\nContent source: ${ctx.real ? 'Claude API (real)' : 'Template'}   Schedule source: simulation (not a commitment)`});
   if(ctx.status){
     const q = L.r.items.map(i => [i, ctx.status(i)]);
     B.push({t:'h2', x:`Progress: ${q.filter(x => x[1].done).length} of ${q.length} work items done (overall ${P.rows[0].pct}%)`});
