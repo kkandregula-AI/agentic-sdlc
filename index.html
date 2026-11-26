@@ -286,8 +286,8 @@ header h1{font-size:15px}.hbtn{padding:6px 9px}
     <label>Project start date</label><input type="date" id="pjStart">
     <div class="row" style="margin-top:12px"><button class="pri" id="pjDetGen">Generate details with Claude</button><span class="tag sim" id="pjDetTag">TEMPLATE</span></div>
     <p class="note" id="pjDetNote">Optional. Needs your key under ⚙ Key.</p>
-    <div class="row" style="margin-top:10px"><button class="pri" id="pjPdf">⬇ PDF</button><button class="pri" id="pjXlsx">⬇ Excel (.xlsx)</button><button class="pri" id="pjMsp">⬇ MS Project (.xml)</button><button class="sec" id="pjCopy">Copy plan text</button></div>
-    <p class="note"><b>PDF:</b> a readable plan with schedule, acceptance criteria, assumptions and risks.<br><b>Excel:</b> 5 sheets (summary, WBS schedule, backlog with acceptance criteria, agents and gates, risks). Opens in Excel, Google Sheets and Numbers.<br><b>MS Project:</b> the .mpp format is a closed binary that a browser app cannot write. This .xml is Microsoft Project's own exchange format: in Project use File → Open, then File → Save As → .mpp. It also opens in ProjectLibre and GanttProject.</p>
+    <div class="row" style="margin-top:10px"><button class="pri" id="pjPdf">⬇ PDF</button><button class="pri" id="pjXlsx">⬇ Excel (.xlsx)</button><button class="pri" id="pjMsp">⬇ MS Project plan (.xml)</button><button class="sec" id="pjCopy">Copy plan text</button></div>
+    <p class="note"><b>PDF:</b> a readable plan with schedule, acceptance criteria, assumptions and risks.<br><b>Excel:</b> 5 sheets (summary, WBS schedule, backlog with acceptance criteria, agents and gates, risks). Opens in Excel, Google Sheets and Numbers.<br><b>MS Project:</b> downloads as .xml, not .mpp. The .mpp format is closed and cannot be created in a browser, so this is Microsoft Project's own import format. To get an .mpp: open the file in MS Project (File → Open), then File → Save As → .mpp. It also opens in ProjectLibre and GanttProject (both free).</p>
   </div>
 </section>
 
@@ -375,7 +375,7 @@ header h1{font-size:15px}.hbtn{padding:6px 9px}
   </details>
 </section>
 
-<footer><div style="color:var(--gold);margin-bottom:4px">Version 11 · Clearer API labels, roadmap note, Live expectations note, PM briefing, simple navigation, Learn module, cost limits, PDF/Excel/MS Project</div>Designed &amp; Architected by Krishnamurthy Kandregula · Made by Claude</footer>
+<footer><div style="color:var(--gold);margin-bottom:4px">Version 12 · Clear MS Project note, clearer API labels, roadmap note, Live expectations note, PM briefing, simple navigation, Learn module, cost limits, PDF/Excel/MS Project</div>Designed &amp; Architected by Krishnamurthy Kandregula · Made by Claude</footer>
 </main>
 
 <nav id="nav">
@@ -1084,7 +1084,7 @@ function artifactsMd(){
 function renderArtifacts(){
   const box = $('#simArtifacts'); if(!artifacts.length){ box.style.display = 'none'; return; }
   box.style.display = 'block';
-  box.innerHTML = `<b style="color:var(--champ)">Agent inputs &amp; outputs · export</b><div class="row" style="margin:8px 0"><button class="pri" id="artPdf">⬇ PDF report</button><button class="pri" id="artXlsx">⬇ Excel</button><button class="pri" id="artMsp">⬇ MS Project (.xml)</button></div><div class="row" style="margin-bottom:8px"><button class="sec" id="artDl">Markdown</button><button class="sec" id="artCopy">Copy all</button></div><p class="note">PDF: readable report. Excel: run record, decisions and an execution plan. MS Project: execution plan for this task (open in Project, then Save As .mpp).</p>`
+  box.innerHTML = `<b style="color:var(--champ)">Agent inputs &amp; outputs · export</b><div class="row" style="margin:8px 0"><button class="pri" id="artPdf">⬇ PDF report</button><button class="pri" id="artXlsx">⬇ Excel</button><button class="pri" id="artMsp">⬇ MS Project plan (.xml)</button></div><div class="row" style="margin-bottom:8px"><button class="sec" id="artDl">Markdown</button><button class="sec" id="artCopy">Copy all</button></div><p class="note">PDF: readable report. Excel: run record, decisions and an execution plan. MS Project: execution plan as .xml (not .mpp). Open it in MS Project, then File → Save As → .mpp.</p>`
     + artifacts.map(a => `<details><summary>${esc(a.stage.agent)} ${a.rev ? `<span class="tag">rev ${a.rev}</span>` : ''} ${a.gated ? '<span class="tag real">approved</span>' : '<span class="tag">auto-passed</span>'}</summary><label>Input</label><pre class="out" style="max-height:200px;overflow:auto">${esc(a.input)}</pre><label>Output</label><pre class="out" style="max-height:260px;overflow:auto">${esc(a.output)}</pre></details>`).join('');
 }
 $('#simArtifacts').addEventListener('click', async e => {
