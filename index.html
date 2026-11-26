@@ -283,7 +283,9 @@ header h1{font-size:15px}.hbtn{padding:6px 9px}
   <div class="card">
     <b style="color:var(--champ)">Export the project plan</b>
     <p class="note" style="margin-top:6px">The schedule comes from the simulation above. Task content (summaries, acceptance criteria, risks) comes from a template, or from Claude when you generate it with your key.</p>
+    <label>Project name (prefix for every file name)</label><input id="pjNameInp" maxlength="60">
     <label>Project start date</label><input type="date" id="pjStart">
+    <div class="row" style="margin-top:8px"><button class="sec" id="pjStartToday">Use today</button></div><p class="note" id="pjStartNote"></p>
     <div class="row" style="margin-top:12px"><button class="pri" id="pjDetGen">Generate details with Claude</button><span class="tag sim" id="pjDetTag">TEMPLATE</span></div>
     <p class="note" id="pjDetNote">Optional. Needs your key under ⚙ Key.</p>
     <div class="row" style="margin-top:10px"><button class="pri" id="pjPdf">⬇ PDF</button><button class="pri" id="pjXlsx">⬇ Excel (.xlsx)</button><button class="pri" id="pjMsp">⬇ MS Project plan (.xml)</button><button class="sec" id="pjCopy">Copy plan text</button></div>
@@ -375,7 +377,7 @@ header h1{font-size:15px}.hbtn{padding:6px 9px}
   </details>
 </section>
 
-<footer><div style="color:var(--gold);margin-bottom:4px">Version 13 · Fix for cut-off replies, clear MS Project note, clearer API labels, roadmap note, Live expectations note, PM briefing, simple navigation, Learn module, cost limits, PDF/Excel/MS Project</div>Designed &amp; Architected by Krishnamurthy Kandregula · Made by Claude</footer>
+<footer><div style="color:var(--gold);margin-bottom:4px">Version 15 · No stray text files on export, stage review and PDFs, file names, start date, fix for cut-off replies, clear MS Project note, clearer API labels, roadmap note, Live expectations note, PM briefing, simple navigation, Learn module, cost limits, PDF/Excel/MS Project</div>Designed &amp; Architected by Krishnamurthy Kandregula · Made by Claude</footer>
 </main>
 
 <nav id="nav">
@@ -1076,22 +1078,78 @@ $('#gNo').onclick = () => {
   answerGate({action:'deny', feedback:fb});
 };
 $('#simReset').onclick = resetSim;
+function slug(s, n){ return String(s || '').toLowerCase().replace(/…/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, n || 40).replace(/-+$/, ''); }
+function projPrefix(){ return slug(pj.name, 32) || 'agentic-sdlc'; }
+function runBase(){ const t = slug(sim.task, 28); return projPrefix() + (t ? '-' + t : ''); }
+const FOOTER = 'Agentic SDLC Lab - Designed & Architected by Krishnamurthy Kandregula - Made by Claude';
+const signTxt = a => a.signed ? `${a.signed.by}, ${a.signed.at.toLocaleString()}` : 'Not signed off';
 function artifactsMd(){
-  return `# Agentic SDLC run\n\nTask: ${sim.task}\nMode: ${simMode === 'live' ? 'Live (Claude API)' : 'Simulated'} · Autonomy: ${autoLvl}\n\n` + artifacts.map(a =>
-    `## ${a.stage.agent}\n\n### Input\n${FENCE}\n${a.input}\n${FENCE}\n\n### Output (${a.gated ? 'human-approved' : 'auto-passed'}${a.rev ? ', revision ' + a.rev : ''})\n\n${a.output}\n`).join('\n')
+  return `# Agentic SDLC run\n\nProject: ${pj.name}\nTask: ${sim.task}\nMode: ${simMode === 'live' ? 'Live (Claude API)' : 'Simulated'} · Autonomy: ${autoLvl}\n\n` + artifacts.map(a =>
+    `## ${a.stage.agent}\n\nReviewer sign-off: ${signTxt(a)}\n\n### Input\n${FENCE}\n${a.input}\n${FENCE}\n\n### Output (${a.gated ? 'human-approved' : 'auto-passed'}${a.rev ? ', revision ' + a.rev : ''})\n\n${a.output}\n`).join('\n')
     + '\nGenerated with Agentic SDLC Lab · Designed & Architected by Krishnamurthy Kandregula · Made by Claude\n';
+}
+function stageBlocks(a, i){
+  const R = sim.rec, live = R && R.mode === 'live', B = [];
+  const rs = R ? R.stages.find(s => s.name === a.stage.name) : null, decs = rs ? rs.decisions : [];
+  B.push({t:'h1', x:`${a.stage.name}: ${a.stage.agent}`});
+  B.push({t:'p', x:`Project: ${pj.name}\nTask: ${sim.task}\nMode: ${live ? 'Live (Claude API)' : 'Simulated'}   Autonomy: ${autoLvl}\nGate: ${a.gated ? 'Human-approved at the gate' : 'Auto-passed (no gate at this autonomy level)'}${a.rev ? ', after ' + a.rev + ' revision' + (a.rev > 1 ? 's' : '') : ''}\nReviewer sign-off: ${a.signed ? signTxt(a) : 'NOT YET SIGNED OFF'}`});
+  if(decs.length) B.push({t:'h3', x:'Human decisions at this stage'}, {t:'code', x:decs.map(d => `${d.at.toLocaleTimeString()}  ${d.action}${d.feedback ? ' - ' + d.feedback : ''}`).join('\n')});
+  B.push({t:'h2', x:'Output'}, {t:'code', x:a.output});
+  B.push({t:'h3', x:'Input given to the agent (trimmed)'}, {t:'code', x:a.userIn.slice(0, 900) + (a.userIn.length > 900 ? '\n[...]' : '')});
+  if(live) B.push({t:'p', x:'Draft for human review. Live agents had no access to your repository or tools; nothing was executed, tested or deployed.'});
+  return B;
+}
+function exportStagePdf(i){ const a = artifacts[i]; if(!a) return; saveBlob(makePdf(stageBlocks(a, i), FOOTER), `${runBase()}-${p2(i + 1)}-${slug(a.stage.name)}-output.pdf`); }
+function exportAllStagesPdf(){
+  if(!artifacts.length) return;
+  const R = sim.rec, B = [];
+  B.push({t:'h1', x:'Stage outputs for review'}, {t:'p', x:`Project: ${pj.name}\nTask: ${sim.task}\nMode: ${R && R.mode === 'live' ? 'Live (Claude API)' : 'Simulated'}   Autonomy: ${autoLvl}\nSigned off: ${artifacts.filter(a => a.signed).length} of ${artifacts.length} stages`});
+  B.push({t:'h2', x:'Output listing'}, {t:'code', x:artifacts.map((a, i) => `${i + 1}. ${a.stage.name.padEnd(9)} ${(a.gated ? 'Human-approved' : 'Auto-passed').padEnd(15)} ${a.signed ? 'Signed: ' + a.signed.by : 'Not signed off'}`).join('\n')});
+  artifacts.forEach((a, i) => { B.push({t:'pb'}); stageBlocks(a, i).forEach(b => B.push(b)); });
+  saveBlob(makePdf(B, FOOTER), `${runBase()}-all-stage-outputs.pdf`);
 }
 function renderArtifacts(){
   const box = $('#simArtifacts'); if(!artifacts.length){ box.style.display = 'none'; return; }
   box.style.display = 'block';
-  box.innerHTML = `<b style="color:var(--champ)">Agent inputs &amp; outputs · export</b><div class="row" style="margin:8px 0"><button class="pri" id="artPdf">⬇ PDF report</button><button class="pri" id="artXlsx">⬇ Excel</button><button class="pri" id="artMsp">⬇ MS Project plan (.xml)</button></div><div class="row" style="margin-bottom:8px"><button class="sec" id="artDl">Markdown</button><button class="sec" id="artCopy">Copy all</button></div><p class="note">PDF: readable report. Excel: run record, decisions and an execution plan. MS Project: execution plan as .xml (not .mpp). Open it in MS Project, then File → Save As → .mpp.</p>`
-    + artifacts.map(a => `<details><summary>${esc(a.stage.agent)} ${a.rev ? `<span class="tag">rev ${a.rev}</span>` : ''} ${a.gated ? '<span class="tag real">approved</span>' : '<span class="tag">auto-passed</span>'}</summary><label>Input</label><pre class="out" style="max-height:200px;overflow:auto">${esc(a.input)}</pre><label>Output</label><pre class="out" style="max-height:260px;overflow:auto">${esc(a.output)}</pre></details>`).join('');
+  const open = new Set(Array.from(box.querySelectorAll('details[open]')).map(d => d.dataset.i));
+  const keepProj = document.activeElement && document.activeElement.id === 'artProj';
+  box.innerHTML = `<b style="color:var(--champ)">Stage outputs · review, sign off and export</b>
+    <p class="note" style="margin:6px 0 0">Open each stage to read what the agent received and produced, then tick the box to sign it off. Sign-offs are written into the PDFs and the Excel file.</p>
+    <label>Project name (prefix for every file name)</label><input id="artProj" maxlength="60" value="${esc(pj.name)}">
+    <label>Reviewer name</label><input id="artReviewer" maxlength="40" placeholder="Your name" value="${esc(store.get('reviewer', ''))}">
+    <p class="note" id="artProg" style="margin:10px 0 8px"></p>`
+    + artifacts.map((a, i) => `<details data-i="${i}" ${open.has(String(i)) ? 'open' : ''}><summary>${i + 1}. ${esc(a.stage.agent)} ${a.rev ? `<span class="tag">rev ${a.rev}</span>` : ''} ${a.gated ? '<span class="tag real">gate approved</span>' : '<span class="tag">auto-passed</span>'} <span class="tag ${a.signed ? 'real' : ''}" data-sg="${i}">${a.signed ? 'signed off' : 'not reviewed'}</span></summary>
+      <label>Output</label><pre class="out" style="max-height:260px;overflow:auto">${esc(a.output)}</pre>
+      <label>Input</label><pre class="out" style="max-height:200px;overflow:auto">${esc(a.input)}</pre>
+      <div class="chk"><input type="checkbox" id="sg${i}" data-sign="${i}" ${a.signed ? 'checked' : ''}><label for="sg${i}" style="margin:0;text-transform:none;letter-spacing:0;font:14px var(--sans);color:var(--text)">I have reviewed this output and approve it</label></div>
+      <div class="row" style="margin-top:8px"><button class="sec" data-pdf="${i}">⬇ This stage (PDF)</button></div></details>`).join('')
+    + `<div class="row" style="margin:12px 0 8px"><button class="pri" id="artAllPdf">⬇ All stage outputs (PDF)</button></div>
+    <div class="row" style="margin-bottom:8px"><button class="pri" id="artPdf">⬇ Run report (PDF)</button><button class="pri" id="artXlsx">⬇ Excel</button><button class="pri" id="artMsp">⬇ MS Project plan (.xml)</button></div>
+    <div class="row" style="margin-bottom:8px"><button class="sec" id="artDl">Markdown</button><button class="sec" id="artCopy">Copy all</button></div>
+    <p class="note">All stage outputs: one PDF, a listing page then each stage on its own page. Run report: summary, decisions and outputs. Excel: run record, decisions and an execution plan. MS Project: execution plan as .xml (not .mpp), open it in MS Project then File → Save As → .mpp. Files start with the project name above.</p>`;
+  updArtProg(); if(keepProj) $('#artProj').focus();
 }
+function updArtProg(){ const el = $('#artProg'); if(el) el.textContent = `${artifacts.filter(a => a.signed).length} of ${artifacts.length} stages signed off`; }
+$('#simArtifacts').addEventListener('change', e => {
+  const t = e.target;
+  if(t.id === 'artProj'){ const v = t.value.trim(); if(v){ pj.name = v.slice(0, 60); store.set('pj', {...pj}); try{ renderProject(); }catch(x){} } return; }
+  if(t.dataset && t.dataset.sign !== undefined){
+    const i = +t.dataset.sign, a = artifacts[i], who = ($('#artReviewer').value || '').trim();
+    if(t.checked && !who){ t.checked = false; $('#artReviewer').focus(); $('#artProg').textContent = 'Enter the reviewer name first, then tick the box.'; return; }
+    a.signed = t.checked ? {by:who, at:new Date()} : null;
+    const tag = $(`#simArtifacts [data-sg="${i}"]`); tag.textContent = a.signed ? 'signed off' : 'not reviewed'; tag.className = 'tag' + (a.signed ? ' real' : '');
+    updArtProg();
+  }
+});
+$('#simArtifacts').addEventListener('input', e => { if(e.target.id === 'artReviewer') store.set('reviewer', e.target.value.slice(0, 40)); });
 $('#simArtifacts').addEventListener('click', async e => {
-  const id = e.target.id; if(!id) return;
+  const pdfBtn = e.target.closest('[data-pdf]');
   try{
+    if(pdfBtn){ exportStagePdf(+pdfBtn.dataset.pdf); return; }
+    const id = e.target.id; if(!id) return;
     if(id === 'artCopy'){ try{ await navigator.clipboard.writeText(artifactsMd()); e.target.textContent = 'Copied ✓'; }catch(x){ e.target.textContent = 'Copy blocked'; } setTimeout(() => e.target.textContent = 'Copy all', 1500); }
-    if(id === 'artDl') saveBlob(new Blob([artifactsMd()], {type:'text/markdown'}), 'agentic-sdlc-run.md');
+    if(id === 'artDl') saveBlob(new Blob([artifactsMd()], {type:'text/markdown'}), runBase() + '-stage-outputs.md');
+    if(id === 'artAllPdf') exportAllStagesPdf();
     if(id === 'artPdf') exportRunPdf();
     if(id === 'artXlsx') exportRunXlsx();
     if(id === 'artMsp') exportMsp(taskCtx());
@@ -1169,7 +1227,7 @@ $('#simRun').onclick = async () => {
         addLog('  ✓ Approved', 'ok'); updStats(); st.status = 'Approved';
       } else { addLog('  ✓ Auto-passed (no gate at this autonomy level)', 'm'); st.status = 'Auto-passed'; }
       st.revs = rev;
-      artifacts.push({stage:s, input:shownIn, userIn:input, output:out, rev, gated:needGate}); upstream.push({name:s.name, text:out}); done = true;
+      artifacts.push({stage:s, input:shownIn, userIn:input, output:out, rev, gated:needGate, signed:null}); upstream.push({name:s.name, text:out}); done = true;
     }
     states[i] = 'done'; renderChips(states);
   }
@@ -1198,12 +1256,12 @@ function taskCtx(){
   return {L:{r, manDays, agDays, pct:Math.round((1 - agDays / manDays) * 100), util:r.reviewMins / r.makespan, verdict:'Single task: no queue across items', manH},
     name:'Task plan: ' + title, auto:autoLvl, model:{wip:1, rev:1, rew:0}, itemDet:taskItemDet,
     projDet:() => ({assumptions:[`Execution plan for one task using the six agents at ${autoLvl} autonomy`, `Agent time x${pj.agentX}; reviewer pickup ${pj.lat}h; review ${pj.revMin} min`, 'Working time is 8-hour days, Monday to Friday', 'Estimate from a simulation model, not a commitment'], risks:['Agent outputs are drafts and need human review', 'Live agents had no access to your repository or tools']}),
-    real:!!(live && sim.calls > 0), file:'agentic-sdlc-task-plan', sprintName:() => 'Execution plan', summaryName:'Summary'};
+    real:!!(live && sim.calls > 0), file:runBase() + '-execution-plan', sprintName:() => 'Execution plan', summaryName:'Summary'};
 }
 function runSheets(){
   const R = sim.rec, live = R.mode === 'live', c = cfg(), cap = s => String(s || '').slice(0, 32000);
   const cost = costText(sim.tin, sim.tout).replace(' ≈ ', '');
-  const summary = [['Field', 'Value'], ['Task', R.task], ['Mode', live ? 'Live (Claude API)' : 'Simulated'], ['Model', R.model], ['Autonomy level', R.auto],
+  const summary = [['Field', 'Value'], ['Project', pj.name], ['Task', R.task], ['Reviewer sign-offs', `${artifacts.filter(a => a.signed).length} of ${artifacts.length} stages`], ['Mode', live ? 'Live (Claude API)' : 'Simulated'], ['Model', R.model], ['Autonomy level', R.auto],
     ['Started', R.started], ['Finished', R.finished || ''], ['Outcome', sim.outcome || 'complete'], ['API calls', sim.calls], ['Tokens in', sim.tin], ['Tokens out', sim.tout], ['Total tokens', sim.tokens],
     ['Run token budget', live ? c.budget : ''], ['Estimated cost', live ? (cost || 'not set (add your prices under ⚙ Key)') : ''], ['Human gates passed', sim.gates], ['Denials', sim.denials],
     ['Note', live ? 'Live agents had no access to your repository or tools. Outputs are drafts for human review.' : 'Simulated content for learning.'],
@@ -1211,19 +1269,19 @@ function runSheets(){
   const stages = [['Stage', 'Agent', 'Status', 'Revisions', 'Tokens in', 'Tokens out', 'Agent started', 'Agent finished', 'Gate opened', 'Human decision at']].concat(R.stages.map(s => [s.name, s.agent, s.status, s.revs, s.tin, s.tout, s.t0, s.t1 || '', s.g0 || '', s.g1 || '']));
   const decisions = [['Time', 'Stage', 'Decision', 'Reviewer feedback']];
   R.stages.forEach(s => s.decisions.forEach(d => decisions.push([d.at, s.name, d.action, d.feedback])));
-  const arts = [['Stage', 'Agent', 'Revision', 'Gate', 'Input (what the agent received)', 'Output (what it produced)']].concat(artifacts.map(a => [a.stage.name, a.stage.agent, a.rev, a.gated ? 'Human-approved' : 'Auto-passed', cap(a.input), cap(a.output)]));
+  const arts = [['Stage', 'Agent', 'Revision', 'Gate', 'Input (what the agent received)', 'Output (what it produced)', 'Reviewer sign-off']].concat(artifacts.map(a => [a.stage.name, a.stage.agent, a.rev, a.gated ? 'Human-approved' : 'Auto-passed', cap(a.input), cap(a.output), signTxt(a)]));
   return [{name:'Run summary', rows:summary, widths:[26, 90]}, {name:'Stages', rows:stages, widths:[10, 24, 14, 10, 10, 10, 17, 17, 17, 17]},
-    {name:'Decision log', rows:decisions, widths:[17, 10, 12, 80]}, {name:'Artifacts', rows:arts, widths:[10, 24, 9, 15, 70, 90]}];
+    {name:'Decision log', rows:decisions, widths:[17, 10, 12, 80]}, {name:'Artifacts', rows:arts, widths:[10, 24, 9, 15, 70, 90, 30]}];
 }
 function exportRunXlsx(){
   if(!sim.rec) return;
   const plan = planSheets(Object.assign(taskCtx(), {summaryName:'Plan summary'}));
-  saveBlob(makeXlsx(runSheets().concat(plan)), 'agentic-sdlc-run.xlsx');
+  saveBlob(makeXlsx(runSheets().concat(plan)), runBase() + '-run-record.xlsx');
 }
 function exportRunPdf(){
   if(!sim.rec) return;
   const R = sim.rec, live = R.mode === 'live', B = [], fd = d => d ? d.toLocaleString() : '-';
-  B.push({t:'h1', x:'Agentic SDLC run report'}, {t:'p', x:'Task: ' + R.task});
+  B.push({t:'h1', x:'Agentic SDLC run report'}, {t:'p', x:'Project: ' + pj.name + '\nTask: ' + R.task});
   B.push({t:'p', x:`Mode: ${live ? 'Live (Claude API)' : 'Simulated'}   Model: ${R.model}   Autonomy: ${R.auto}\nStarted: ${fd(R.started)}   Finished: ${fd(R.finished)}\nOutcome: ${sim.outcome || 'complete'}\nCalls: ${sim.calls}   Tokens: ${sim.tokens} (in ${sim.tin}, out ${sim.tout})${costText(sim.tin, sim.tout)}\nHuman gates passed: ${sim.gates}   Denials: ${sim.denials}`});
   if(live) B.push({t:'p', x:'Note: Live agents had no access to your repository or tools. Every output below is a draft for human review; nothing was executed, tested or deployed.'});
   B.push({t:'h2', x:'Stage summary'});
@@ -1231,11 +1289,11 @@ function exportRunPdf(){
   const dl = []; R.stages.forEach(s => s.decisions.forEach(d => dl.push(`${d.at.toLocaleTimeString()}  ${s.name}: ${d.action}${d.feedback ? ' - ' + d.feedback : ''}`)));
   if(dl.length){ B.push({t:'h2', x:'Human decisions'}, {t:'code', x:dl.join('\n')}); }
   artifacts.forEach(a => {
-    B.push({t:'h2', x:`${a.stage.agent} (${a.stage.name})`}, {t:'p', x:`${a.gated ? 'Human-approved' : 'Auto-passed'}${a.rev ? ', after ' + a.rev + ' revision' + (a.rev > 1 ? 's' : '') : ''}`});
+    B.push({t:'h2', x:`${a.stage.agent} (${a.stage.name})`}, {t:'p', x:`${a.gated ? 'Human-approved' : 'Auto-passed'}${a.rev ? ', after ' + a.rev + ' revision' + (a.rev > 1 ? 's' : '') : ''}\nReviewer sign-off: ${signTxt(a)}`});
     B.push({t:'h3', x:'Output'}, {t:'code', x:a.output});
     B.push({t:'h3', x:'Input given to the agent (trimmed; full input is in the Excel file)'}, {t:'code', x:a.userIn.slice(0, 900) + (a.userIn.length > 900 ? '\n[...]' : '')});
   });
-  saveBlob(makePdf(B, 'Agentic SDLC Lab - Designed & Architected by Krishnamurthy Kandregula - Made by Claude'), 'agentic-sdlc-run.pdf');
+  saveBlob(makePdf(B, 'Agentic SDLC Lab - Designed & Architected by Krishnamurthy Kandregula - Made by Claude'), runBase() + '-run-report.pdf');
 }
 
 /* ---------- BRIEF ---------- */
@@ -1487,7 +1545,7 @@ function renderProject(){
   const sp = {}; r.items.forEach(it => { (sp[it.sprint] = sp[it.sprint] || {n:0, end:0}); sp[it.sprint].n++; sp[it.sprint].end = Math.max(sp[it.sprint].end, it.finish); });
   $('#pjSprints').innerHTML = Object.keys(sp).sort().map(k => `<div class="sprint"><span>Sprint ${k} · ${sp[k].n} items</span><span style="font-family:var(--mono);color:var(--champ)">done by day ${(sp[k].end * buf / DAY).toFixed(1)}</span></div>`).join('');
   $('#pjBacklog').innerHTML = r.items.map(it => `<div class="bl"><code>${esc(it.id)}</code><div>${esc(it.title)}${it.high ? ' <span class="tag" style="color:var(--red);border-color:#6b2f2f">high risk</span>' : ''}<small>Sprint ${it.sprint} · size ${it.size}/5 · depends on ${it.deps.length ? esc(it.deps.join(', ')) : 'nothing'} · ${it.stages.map(i => STAGES[i].name).join(' › ')}</small></div></div>`).join('');
-  $('#pjCount').textContent = r.items.length; $('#pjName').textContent = 'Current project: ' + pj.name;
+  $('#pjCount').textContent = r.items.length; $('#pjName').textContent = 'Current project: ' + pj.name; { const ni = $('#pjNameInp'); if(ni && document.activeElement !== ni) ni.value = pj.name; }
   $('#pjWipV').textContent = pj.wip; $('#pjRevV').textContent = pj.rev; $('#pjRewV').textContent = pj.rew; $('#pjEngV').textContent = pj.eng;
   $$('#pjAuto button').forEach(b => b.classList.toggle('on', b.dataset.a === pj.auto));
   const sel = $('#brItem'), cur = sel.value;
@@ -1530,7 +1588,7 @@ $('#pjGen').onclick = async () => {
     let partial = false;
     if(!arr){ arr = looseObjects(t, 1); partial = true; }
     const items = sanitizeItems(arr); if(!items) throw new Error('Claude\'s reply was cut before 3 complete items. Nothing was retried. Try a shorter description.');
-    pj.items = items; pj.name = d.length > 44 ? d.slice(0, 44) + '…' : d;
+    pj.items = items; const nm = d.match(/(?:app|project|product|platform)\s+(?:name\s+(?:is|:)|called|named)\s+"?([A-Za-z0-9][A-Za-z0-9 _-]{1,38})/i); pj.name = nm ? nm[1].trim() : (d.length > 44 ? d.slice(0, 44) + '…' : d);
     $('#pjMode').textContent = 'REAL · CLAUDE API'; $('#pjMode').className = 'tag real';
     $('#pjGenNote').textContent = `Backlog generated (${(r.tin + r.tout).toLocaleString()} tokens used)${partial ? '. The reply was cut at the cost cap, so only the complete items were kept' : ''}. Review it under Backlog below, then tune the model.`;
     renderProject();
@@ -1563,7 +1621,7 @@ function parseDay(s){
   const d = a.length === 3 && a.every(n => !isNaN(n)) ? new Date(a[0], a[1] - 1, a[2]) : new Date();
   d.setHours(0, 0, 0, 0); while(d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1); return d;
 }
-function defaultStart(){ const d = new Date(); d.setHours(0, 0, 0, 0); while(d.getDay() !== 1) d.setDate(d.getDate() + 1); return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`; }
+function defaultStart(){ const d = new Date(); d.setHours(0, 0, 0, 0); return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`; }
 function atWork(start, mins, isEnd){
   let day = Math.floor(mins / 480), rem = mins % 480;
   if(isEnd && mins > 0 && rem === 0){ day--; rem = 480; }
@@ -1715,12 +1773,12 @@ function exportMsp(ctx){
   let au = 0; const asg = P.rows.filter(r => r.res).map(r => `<Assignment><UID>${++au}</UID><TaskUID>${r.uid}</TaskUID><ResourceUID>${ruid[r.res]}</ResourceUID><Units>1</Units></Assignment>`).join('');
   const xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Project xmlns="http://schemas.microsoft.com/project"><SaveVersion>14</SaveVersion><Name>${xs(ctx.name.slice(0, 60))}</Name><Title>${xs(ctx.name)}</Title><CreationDate>${isoL(new Date())}</CreationDate><ScheduleFromStart>1</ScheduleFromStart><StartDate>${isoL(D(0, false))}</StartDate><FinishDate>${isoL(D(P.total, true))}</FinishDate><CalendarUID>1</CalendarUID><DefaultStartTime>09:00:00</DefaultStartTime><DefaultFinishTime>17:00:00</DefaultFinishTime><MinutesPerDay>480</MinutesPerDay><MinutesPerWeek>2400</MinutesPerWeek><DaysPerMonth>20</DaysPerMonth><Calendars><Calendar><UID>1</UID><Name>Standard</Name><IsBaseCalendar>1</IsBaseCalendar><WeekDays>${wd(1, 0)}${wd(2, 1)}${wd(3, 1)}${wd(4, 1)}${wd(5, 1)}${wd(6, 1)}${wd(7, 0)}</WeekDays></Calendar></Calendars><Tasks>${tasks}</Tasks><Resources>${res}</Resources><Assignments>${asg}</Assignments></Project>`;
-  saveBlob(new Blob([xml], {type:'application/xml'}), ctx.file + '.xml');
+  saveBlob(new Blob([xml], {type:'application/xml'}), ctx.file + '-msproject.xml');
 }
 async function saveBlob(blob, name){
   const file = new File([blob], name, {type:blob.type});
   if(/iPhone|iPad|iPod/.test(navigator.userAgent) && navigator.canShare && navigator.canShare({files:[file]})){
-    try{ await navigator.share({files:[file], title:name}); return; }catch(e){ if(e && e.name === 'AbortError') return; }
+    try{ await navigator.share({files:[file]}); return; }catch(e){ if(e && e.name === 'AbortError') return; }
   }
   const u = URL.createObjectURL(blob), a = document.createElement('a'); a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 2000);
 }
@@ -1752,6 +1810,7 @@ function makePdf(blocks, footer){
     else if(b.t === 'h3'){ gap(6); head(b.x, 10, 14); }
     else if(b.t === 'p'){ mono(b.x, 8.5, MG); gap(4); }
     else if(b.t === 'code'){ mono(b.x, 8, MG + 8); gap(4); }
+    else if(b.t === 'pb'){ if(pages[pages.length - 1].length){ pages.push([]); y = H - MG; } }
     else gap(8);
   });
   const N = pages.length, objs = [];
@@ -1786,13 +1845,17 @@ function exportProjectPdf(){
     B.push({t:'code', x:d.acceptance.map((a, k) => `${k + 1}. ${a}`).join('\n') + (d.risks.length ? '\nRisks: ' + d.risks.join('; ') : '')});
   });
   B.push({t:'h2', x:'Assumptions'}, {t:'code', x:pd.assumptions.map(a => '- ' + a).join('\n')}, {t:'h2', x:'Risks'}, {t:'code', x:pd.risks.map(a => '- ' + a).join('\n')});
-  saveBlob(makePdf(B, 'Agentic SDLC Lab - Designed & Architected by Krishnamurthy Kandregula - Made by Claude'), 'agentic-sdlc-plan.pdf');
+  saveBlob(makePdf(B, 'Agentic SDLC Lab - Designed & Architected by Krishnamurthy Kandregula - Made by Claude'), projPrefix() + '-project-plan.pdf');
 }
 
-const projCtx = () => ({L:pjLast, name:pj.name, auto:pj.auto, model:{wip:pj.wip, rev:pj.rev, rew:pj.rew}, itemDet, projDet, real:!!activeDet(), file:'agentic-sdlc-plan', sprintName:null, summaryName:'Summary'});
-if(!pj.start) pj.start = defaultStart();
+const projCtx = () => ({L:pjLast, name:pj.name, auto:pj.auto, model:{wip:pj.wip, rev:pj.rev, rew:pj.rew}, itemDet, projDet, real:!!activeDet(), file:projPrefix() + '-project-plan', sprintName:null, summaryName:'Summary'});
+if(!pj.startUser || !pj.start) pj.start = defaultStart();
 $('#pjStart').value = pj.start;
-$('#pjStart').addEventListener('change', e => { pj.start = e.target.value || defaultStart(); store.set('pj', {...pj}); });
+$('#pjNameInp').addEventListener('change', e => { const v = e.target.value.trim(); if(v){ pj.name = v.slice(0, 60); store.set('pj', {...pj}); renderProject(); } });
+const startNote = () => { $('#pjStartNote').textContent = pj.startUser ? 'Custom start date. Weekends are skipped in the schedule.' : 'Default: today, the day you run it. Change it if the project starts on another day. Weekends are skipped in the schedule.'; };
+$('#pjStart').addEventListener('change', e => { pj.startUser = !!e.target.value; pj.start = e.target.value || defaultStart(); store.set('pj', {...pj}); startNote(); });
+$('#pjStartToday').onclick = () => { pj.startUser = false; pj.start = defaultStart(); $('#pjStart').value = pj.start; store.set('pj', {...pj}); startNote(); };
+startNote();
 $('#pjXlsx').onclick = () => { try{ exportXlsx(); }catch(e){ $('#pjDetNote').textContent = 'Export failed: ' + e.message; } };
 $('#pjMsp').onclick = () => { try{ exportMsp(); }catch(e){ $('#pjDetNote').textContent = 'Export failed: ' + e.message; } };
 $('#pjPdf').onclick = () => { try{ exportProjectPdf(); }catch(e){ $('#pjDetNote').textContent = 'Export failed: ' + e.message; } };
