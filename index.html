@@ -379,7 +379,7 @@ header h1{font-size:15px}.hbtn{padding:6px 9px}
   </details>
 </section>
 
-<footer><div style="color:var(--gold);margin-bottom:4px">Version 17 · Backlog item outputs with review and sign-off, separate plan per autonomy level, no stray text files on export, stage review and PDFs, file names, start date, fix for cut-off replies, clear MS Project note, clearer API labels, roadmap note, Live expectations note, PM briefing, simple navigation, Learn module, cost limits, PDF/Excel/MS Project</div>Designed &amp; Architected by Krishnamurthy Kandregula · Made by Claude</footer>
+<footer><div style="color:var(--gold);margin-bottom:4px">Version 18 · Fix for empty replies, backlog item outputs with review and sign-off, separate plan per autonomy level, no stray text files on export, stage review and PDFs, file names, start date, fix for cut-off replies, clear MS Project note, clearer API labels, roadmap note, Live expectations note, PM briefing, simple navigation, Learn module, cost limits, PDF/Excel/MS Project</div>Designed &amp; Architected by Krishnamurthy Kandregula · Made by Claude</footer>
 </main>
 
 <nav id="nav">
@@ -795,7 +795,7 @@ const GUARDS = ['Agents run in sandboxed environments','Scoped, short-lived toke
 
 /* ---------- GUARDRAILS (cost control) ---------- */
 const LEARN_VER = 1;
-const HARD = {maxCalls:12, maxRevStage:2, maxRevRun:4, outAgent:450, outBrief:700, outBacklog:1400, outDetails:2200, timeoutMs:60000};
+const HARD = {maxCalls:12, maxRevStage:2, maxRevRun:4, outAgent:500, outBrief:700, outBacklog:1400, outDetails:2200, timeoutMs:60000};
 const MODELS = {economy:{id:'claude-haiku-5-5', label:'Economy (Haiku 5.5)'}, standard:{id:'claude-sonnet-5-5', label:'Standard (Sonnet 5.5)'}};
 const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 function cfg(){
@@ -831,18 +831,26 @@ async function claude({system, user, maxOut, signal}){
   const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), HARD.timeoutMs);
   if(signal) signal.addEventListener('abort', () => ctl.abort());
   let res, data;
+  const send = async b => { const r = await fetch('https://api.anthropic.com/v1/messages', {method:'POST', signal:ctl.signal,
+      headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'}, body:JSON.stringify(b)}); return {r, d:await r.json()}; };
   try{
-    res = await fetch('https://api.anthropic.com/v1/messages', {method:'POST', signal:ctl.signal,
-      headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:MODELS[c.model].id, max_tokens:maxOut, system, messages:[{role:'user', content:user}]})});
-    data = await res.json();
+    /* These models think by default and thinking tokens count against max_tokens: a small cap can end with no text.
+       So thinking is turned off (Haiku: disabled; Sonnet: between_tools) and effort kept low. */
+    const base = {model:MODELS[c.model].id, max_tokens:maxOut, system, messages:[{role:'user', content:user}]};
+    let o = await send(Object.assign({}, base, {thinking:{type:c.model === 'standard' ? 'between_tools' : 'disabled'}, output_config:{effort:'low'}}));
+    /* A 400 about these fields bills nothing, so one fallback without them is free */
+    if(!o.r.ok && /thinking|effort|output_config|between_tools|disabled/i.test((o.d && o.d.error && o.d.error.message) || '')) o = await send(base);
+    res = o.r; data = o.d;
   }catch(e){ throw new Error(e && e.name === 'AbortError' ? 'Request timed out or was cancelled. No retry was made.' : (e.message || 'Network error')); }
   finally{ clearTimeout(t); }
   if(!res.ok) throw new Error((data.error && data.error.message) || ('HTTP ' + res.status));
   const tin = (data.usage && data.usage.input_tokens) || estTok(system + user), tout = (data.usage && data.usage.output_tokens) || 0;
   addUsage(tin, tout);
   let text = (data.content || []).map(x => x.text || '').join('').trim();
-  if(!text) throw new Error('Empty reply from the API');
+  if(!text){
+    const types = (data.content || []).map(x => x.type).join(', ') || 'none';
+    throw new Error(`Empty reply from the API (stop reason: ${data.stop_reason || 'unknown'}, content: ${types}, ${tout} output tokens used). ${data.stop_reason === 'max_tokens' ? 'The model most likely spent its output cap on thinking. ' : ''}Nothing was retried.`);
+  }
   const truncated = data.stop_reason === 'max_tokens';
   if(truncated) text += '\n[Output cut at the token cap to limit cost.]';
   return {text, tin, tout, truncated};
